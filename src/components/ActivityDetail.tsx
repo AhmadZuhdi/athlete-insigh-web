@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
 
@@ -21,41 +21,62 @@ const ActivityDetail: React.FC = () => {
     }
   }, [id]);
 
-  useEffect(() => {
-    if (activity && athlete?.birth_year) {
-      loadComparisonData();
+  const calculateRelativeEffortPoints = () => {
+    if (!activity?.streams?.heartrate || !athlete?.birth_year) {
+      return null;
     }
-  }, [activity, athlete, comparisonPeriod]);
 
-  const loadActivityDetail = async (activityId: number, forceRefresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      if (forceRefresh) {
-        await stravaService.clearActivityDetailCache(activityId);
+    const maxHR = calculateMaxHeartRate(athlete.birth_year);
+    const zones = getHeartRateZones(maxHR);
+    const heartRateData = activity.streams.heartrate;
+    const timeData = activity.streams.time || [];
+
+    // Zone multipliers for effort calculation
+    const zoneMultipliers = {
+      zone1: 1,   // Recovery
+      zone2: 2,   // Aerobic Base
+      zone3: 3,   // Aerobic
+      zone4: 5,   // Lactate Threshold
+      zone5: 8    // Neuromuscular Power
+    };
+
+    let totalEffortPoints = 0;
+    let totalTimeInZones = 0;
+
+    // Calculate effort points for each heart rate reading
+    heartRateData.forEach((hr, index) => {
+      if (hr && hr > 0) {
+        const timeIncrement = index < timeData.length - 1 ? timeData[index + 1] - timeData[index] : 1;
+        totalTimeInZones += timeIncrement;
+        
+        if (hr <= zones.zone1.max) {
+          totalEffortPoints += timeIncrement * zoneMultipliers.zone1;
+        } else if (hr <= zones.zone2.max) {
+          totalEffortPoints += timeIncrement * zoneMultipliers.zone2;
+        } else if (hr <= zones.zone3.max) {
+          totalEffortPoints += timeIncrement * zoneMultipliers.zone3;
+        } else if (hr <= zones.zone4.max) {
+          totalEffortPoints += timeIncrement * zoneMultipliers.zone4;
+        } else {
+          totalEffortPoints += timeIncrement * zoneMultipliers.zone5;
+        }
       }
-      
-      const detail = await stravaService.getActivityDetail(activityId);
-      setActivity(detail);
-    } catch (error) {
-      console.error('Error loading activity detail:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load activity detail');
-    } finally {
-      setLoading(false);
-    }
+    });
+
+    // Calculate relative effort score (normalized per hour)
+    const relativeEffortScore = totalTimeInZones > 0 ? Math.round((totalEffortPoints / totalTimeInZones) * 3600) : 0;
+    const intensityFactor = totalTimeInZones > 0 ? (totalEffortPoints / totalTimeInZones) / 3 : 0; // Normalized intensity
+    
+    return {
+      totalPoints: Math.round(totalEffortPoints),
+      relativeScore: relativeEffortScore,
+      intensityFactor: Math.round(intensityFactor * 100) / 100,
+      timeInZones: Math.round(totalTimeInZones / 60), // in minutes
+      zoneMultipliers
+    };
   };
 
-  const loadAthlete = async () => {
-    try {
-      const athleteData = await stravaService.getAthlete();
-      setAthlete(athleteData);
-    } catch (error) {
-      console.error('Error loading athlete:', error);
-    }
-  };
-
-  const loadComparisonData = async () => {
+  const loadComparisonData = useCallback(async () => {
     if (!activity || !athlete?.birth_year) return;
 
     try {
@@ -92,12 +113,10 @@ const ActivityDetail: React.FC = () => {
 
             const zoneMultipliers = { zone1: 1, zone2: 2, zone3: 3, zone4: 5, zone5: 8 };
             let totalEffortPoints = 0;
-            let totalTimeInZones = 0;
 
             heartRateData.forEach((hr, index) => {
               if (hr && hr > 0) {
                 const timeIncrement = index < timeData.length - 1 ? timeData[index + 1] - timeData[index] : 1;
-                totalTimeInZones += timeIncrement;
                 
                 if (hr <= zones.zone1.max) {
                   totalEffortPoints += timeIncrement * zoneMultipliers.zone1;
@@ -149,6 +168,40 @@ const ActivityDetail: React.FC = () => {
       setComparisonData(comparisonResults);
     } catch (error) {
       console.error('Error loading comparison data:', error);
+    }
+  }, [activity, athlete, comparisonPeriod, calculateRelativeEffortPoints]);
+
+  useEffect(() => {
+    if (activity && athlete?.birth_year) {
+      loadComparisonData();
+    }
+  }, [activity, athlete, comparisonPeriod, loadComparisonData]);
+
+  const loadActivityDetail = async (activityId: number, forceRefresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (forceRefresh) {
+        await stravaService.clearActivityDetailCache(activityId);
+      }
+      
+      const detail = await stravaService.getActivityDetail(activityId);
+      setActivity(detail);
+    } catch (error) {
+      console.error('Error loading activity detail:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load activity detail');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAthlete = async () => {
+    try {
+      const athleteData = await stravaService.getAthlete();
+      setAthlete(athleteData);
+    } catch (error) {
+      console.error('Error loading athlete:', error);
     }
   };
 
@@ -219,61 +272,6 @@ const ActivityDetail: React.FC = () => {
       percentage: Math.round((data.time / (timeData[timeData.length - 1] || 1)) * 100),
       color: data.color
     })).filter(item => item.time > 0);
-  };
-
-  const calculateRelativeEffortPoints = () => {
-    if (!activity?.streams?.heartrate || !athlete?.birth_year) {
-      return null;
-    }
-
-    const maxHR = calculateMaxHeartRate(athlete.birth_year);
-    const zones = getHeartRateZones(maxHR);
-    const heartRateData = activity.streams.heartrate;
-    const timeData = activity.streams.time || [];
-
-    // Zone multipliers for effort calculation
-    const zoneMultipliers = {
-      zone1: 1,   // Recovery
-      zone2: 2,   // Aerobic Base
-      zone3: 3,   // Aerobic
-      zone4: 5,   // Lactate Threshold
-      zone5: 8    // Neuromuscular Power
-    };
-
-    let totalEffortPoints = 0;
-    let totalTimeInZones = 0;
-
-    // Calculate effort points for each heart rate reading
-    heartRateData.forEach((hr, index) => {
-      if (hr && hr > 0) {
-        const timeIncrement = index < timeData.length - 1 ? timeData[index + 1] - timeData[index] : 1;
-        totalTimeInZones += timeIncrement;
-        
-        if (hr <= zones.zone1.max) {
-          totalEffortPoints += timeIncrement * zoneMultipliers.zone1;
-        } else if (hr <= zones.zone2.max) {
-          totalEffortPoints += timeIncrement * zoneMultipliers.zone2;
-        } else if (hr <= zones.zone3.max) {
-          totalEffortPoints += timeIncrement * zoneMultipliers.zone3;
-        } else if (hr <= zones.zone4.max) {
-          totalEffortPoints += timeIncrement * zoneMultipliers.zone4;
-        } else {
-          totalEffortPoints += timeIncrement * zoneMultipliers.zone5;
-        }
-      }
-    });
-
-    // Calculate relative effort score (normalized per hour)
-    const relativeEffortScore = totalTimeInZones > 0 ? Math.round((totalEffortPoints / totalTimeInZones) * 3600) : 0;
-    const intensityFactor = totalTimeInZones > 0 ? (totalEffortPoints / totalTimeInZones) / 3 : 0; // Normalized intensity
-    
-    return {
-      totalPoints: Math.round(totalEffortPoints),
-      relativeScore: relativeEffortScore,
-      intensityFactor: Math.round(intensityFactor * 100) / 100,
-      timeInZones: Math.round(totalTimeInZones / 60), // in minutes
-      zoneMultipliers
-    };
   };
 
   const formatDistance = (distance: number) => {
@@ -527,7 +525,7 @@ const ActivityDetail: React.FC = () => {
     // Add custom LLM prefix if available
     let finalSummary = summary;
     if (athlete?.llm_summary_prefix) {
-      finalSummary = `${athlete.llm_summary_prefix}\n\n${summary}`;
+      finalSummary = athlete.llm_summary_prefix.replace('$summary', summary);
     }
     
     return finalSummary;

@@ -1,6 +1,6 @@
 # Athlete Insight - Strava Activity Analyzer
 
-A React-based web applic### Strava API Integration
+A React-based web application Strava API Integration
 - OAuth 2.0 authentication flow
 - Automatic token refresh
 - Activity listing and detailed activity fetching

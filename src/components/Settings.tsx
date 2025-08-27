@@ -360,7 +360,10 @@ const Settings: React.FC = () => {
         <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
           <h3>LLM Summary Settings</h3>
           <div className="form-group">
-            <label htmlFor="llmPrefix">Custom LLM Summary Prefix</label>
+            <label htmlFor="llmPrefix">
+              Custom LLM Summary Prefix <br />
+              $summary will be replaced with the activity summary.
+            </label>
             <textarea
               id="llmPrefix"
               value={llmPrefix}
@@ -370,7 +373,8 @@ const Settings: React.FC = () => {
               style={{ 
                 marginBottom: '0.5rem',
                 resize: 'vertical',
-                minHeight: '100px'
+                minHeight: '100px',
+                width: '100%',
               }}
             />
             <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>

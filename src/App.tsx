@@ -17,16 +17,16 @@ function App() {
           </Link>
           <div className="nav-links">
             <Link 
-              to="/settings" 
-              className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
-            >
-              Settings
-            </Link>
-            <Link 
               to="/activities" 
               className={`nav-link ${location.pathname === '/activities' ? 'active' : ''}`}
             >
               Activities
+            </Link>
+            <Link 
+              to="/settings" 
+              className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
+            >
+              Settings
             </Link>
           </div>
         </div>

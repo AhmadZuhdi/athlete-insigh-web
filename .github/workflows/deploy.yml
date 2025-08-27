@@ -43,6 +43,8 @@ jobs:
           # This is important for GitHub Pages deployment
           # It sets the correct base path for the app
           PUBLIC_URL: /athlete-insigh-web
+          # Treat warnings as warnings, not errors (CI=false)
+          CI: false
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

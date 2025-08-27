@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
 import { StravaActivity } from '../services/database';
@@ -22,12 +22,46 @@ const Activities: React.FC = () => {
   });
   const navigate = useNavigate();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const applyFilters = useCallback(() => {
+    let filtered = [...activities];
+
+    // Filter by activity type
+    if (filters.type) {
+      filtered = filtered.filter(activity => 
+        activity.type.toLowerCase() === filters.type.toLowerCase()
+      );
+    }
+
+    // Filter by search term (name)
+    if (filters.search) {
+      filtered = filtered.filter(activity =>
+        activity.name.toLowerCase().includes(filters.search.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      filtered = filtered.filter(activity =>
+        new Date(activity.start_date_local) >= fromDate
+      );
+    }
+
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter(activity =>
+        new Date(activity.start_date_local) <= toDate
+      );
+    }
+
+    setFilteredActivities(filtered);
+  }, [activities, filters]);
+
   useEffect(() => {
     checkAuthAndLoadActivities();
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Handle OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
@@ -38,13 +72,12 @@ const Activities: React.FC = () => {
     }
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Apply filters when activities or filters change
     applyFilters();
-  }, [activities, filters]);
+  }, [activities, filters, applyFilters]);
 
-  const checkAuthAndLoadActivities = async () => {
+  const checkAuthAndLoadActivities = useCallback(async () => {
     try {
       const authenticated = await stravaService.isAuthenticated();
       setIsAuthenticated(authenticated);
@@ -62,9 +95,9 @@ const Activities: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleOAuthCallback = async (code: string) => {
+  const handleOAuthCallback = useCallback(async (code: string) => {
     try {
       setLoading(true);
       const settings = await stravaService.getSettings();
@@ -86,7 +119,7 @@ const Activities: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const loadActivities = async (reset = false) => {
     try {
@@ -187,42 +220,6 @@ const Activities: React.FC = () => {
       setLoadingStreams(false);
       setStreamProgress({ current: 0, total: 0 });
     }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...activities];
-
-    // Filter by activity type
-    if (filters.type) {
-      filtered = filtered.filter(activity => 
-        activity.type.toLowerCase() === filters.type.toLowerCase()
-      );
-    }
-
-    // Filter by search term (name)
-    if (filters.search) {
-      filtered = filtered.filter(activity =>
-        activity.name.toLowerCase().includes(filters.search.toLowerCase())
-      );
-    }
-
-    // Filter by date range
-    if (filters.dateFrom) {
-      const fromDate = new Date(filters.dateFrom);
-      filtered = filtered.filter(activity =>
-        new Date(activity.start_date_local) >= fromDate
-      );
-    }
-
-    if (filters.dateTo) {
-      const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59, 999); // End of day
-      filtered = filtered.filter(activity =>
-        new Date(activity.start_date_local) <= toDate
-      );
-    }
-
-    setFilteredActivities(filtered);
   };
 
   const handleFilterChange = (key: string, value: string) => {
