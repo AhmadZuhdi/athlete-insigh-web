@@ -46,6 +46,11 @@ jobs:
           # Treat warnings as warnings, not errors (CI=false)
           CI: false
 
+      - name: Remove CNAME file (force github.io domain)
+        run: |
+          rm -f ./build/CNAME || true
+          echo "Forcing github.io domain by removing any CNAME files"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
