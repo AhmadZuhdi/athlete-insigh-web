@@ -403,24 +403,24 @@ const Settings: React.FC = () => {
       )}
 
       {/* Data Management */}
-      {isAuthenticated && (
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
-          <h3>Data Management</h3>
-          
-          {dataStats && (
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-              <h4 style={{ marginBottom: '1rem' }}>Database Statistics</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.9rem' }}>
-                <div><strong>Activities:</strong> {dataStats.activities}</div>
-                <div><strong>Activity Details:</strong> {dataStats.activityDetails}</div>
-                <div><strong>Athletes:</strong> {dataStats.athlete}</div>
-                <div><strong>Total Size:</strong> {dataStats.totalSize}</div>
-              </div>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+        <h3>Data Management</h3>
+        
+        {isAuthenticated && dataStats && (
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            <h4 style={{ marginBottom: '1rem' }}>Database Statistics</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.9rem' }}>
+              <div><strong>Activities:</strong> {dataStats.activities}</div>
+              <div><strong>Activity Details:</strong> {dataStats.activityDetails}</div>
+              <div><strong>Athletes:</strong> {dataStats.athlete}</div>
+              <div><strong>Total Size:</strong> {dataStats.totalSize}</div>
             </div>
-          )}
+          </div>
+        )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-            {/* Export */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+          {/* Export - Only show when authenticated */}
+          {isAuthenticated && (
             <div style={{ padding: '1rem', border: '1px solid #dee2e6', borderRadius: '4px' }}>
               <h4 style={{ marginBottom: '0.5rem' }}>Export Data</h4>
               <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
@@ -435,38 +435,38 @@ const Settings: React.FC = () => {
                 {exporting ? 'Exporting...' : '📥 Export Data'}
               </button>
             </div>
+          )}
 
-            {/* Import */}
-            <div style={{ padding: '1rem', border: '1px solid #dee2e6', borderRadius: '4px' }}>
-              <h4 style={{ marginBottom: '0.5rem' }}>Import Data</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-                Import previously exported data. This will replace all current data.
-              </p>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImportData}
-                accept=".json"
-                style={{ display: 'none' }}
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="btn"
-                disabled={importing}
-                style={{ width: '100%', backgroundColor: '#28a745', borderColor: '#28a745' }}
-              >
-                {importing ? 'Importing...' : '📤 Import Data'}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#856404' }}>
-              <strong>⚠️ Important:</strong> Import will replace all existing data. Make sure to export your current data first if you want to keep it.
+          {/* Import - Always show */}
+          <div style={{ padding: '1rem', border: '1px solid #dee2e6', borderRadius: '4px' }}>
+            <h4 style={{ marginBottom: '0.5rem' }}>Import Data</h4>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+              Import previously exported data. This will replace all current data.
             </p>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportData}
+              accept=".json"
+              style={{ display: 'none' }}
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="btn"
+              disabled={importing}
+              style={{ width: '100%', backgroundColor: '#28a745', borderColor: '#28a745' }}
+            >
+              {importing ? 'Importing...' : '📤 Import Data'}
+            </button>
           </div>
         </div>
-      )}
+
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: '#856404' }}>
+            <strong>⚠️ Important:</strong> Import will replace all existing data. {isAuthenticated ? 'Make sure to export your current data first if you want to keep it.' : 'You can import data even when not authenticated.'}
+          </p>
+        </div>
+      </div>
 
       <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
         <h3 style={{ color: '#dc3545' }}>Danger Zone</h3>
