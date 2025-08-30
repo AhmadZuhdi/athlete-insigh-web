@@ -249,7 +249,19 @@ const Settings: React.FC = () => {
 
   return (
     <div className="card">
-      <h1>Strava API Settings</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h1>Strava API Settings</h1>
+        <span style={{ 
+          fontSize: '0.9rem', 
+          color: '#666', 
+          backgroundColor: '#f8f9fa', 
+          padding: '0.25rem 0.5rem', 
+          borderRadius: '4px',
+          border: '1px solid #dee2e6'
+        }}>
+          v0.1.3
+        </span>
+      </div>
       
       {message && (
         <div className={message.type === 'success' ? 'success' : 'error'}>

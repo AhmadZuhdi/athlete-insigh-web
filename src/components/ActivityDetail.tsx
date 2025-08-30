@@ -501,22 +501,71 @@ const ActivityDetail: React.FC = () => {
         
         summary += `Activity_types:[${topTypes}], `;
         
-        // All activities in same year with full details
+        // All activities in same year with full details including HR zones
         const sortedActivities = [...yearActivities].sort((a, b) => new Date(b.start_date_local).getTime() - new Date(a.start_date_local).getTime());
-        const allActivities = sortedActivities
-          .map(act => {
-            const date = new Date(act.start_date_local).toISOString().split('T')[0];
-            const distance = (act.distance / 1000).toFixed(2) + 'km';
-            const movingTime = formatDuration(act.moving_time);
-            const avgSpeed = (act.average_speed * 3.6).toFixed(2) + 'km/h';
-            const elevation = act.total_elevation_gain.toFixed(0) + 'm';
-            const avgHR = act.average_heartrate ? act.average_heartrate.toFixed(1) + 'bpm' : 'N/A';
-            
-            return `${act.name}(${act.type})_${date}:${distance}_${movingTime}_${avgSpeed}_${elevation}_HR:${avgHR}`;
-          })
-          .join('|');
+        const allActivitiesWithHR = await Promise.all(sortedActivities.map(async (act) => {
+          const date = new Date(act.start_date_local).toISOString().split('T')[0];
+          const distance = (act.distance / 1000).toFixed(2) + 'km';
+          const movingTime = formatDuration(act.moving_time);
+          const avgSpeed = (act.average_speed * 3.6).toFixed(2) + 'km/h';
+          const elevation = act.total_elevation_gain.toFixed(0) + 'm';
+          const avgHR = act.average_heartrate ? act.average_heartrate.toFixed(1) + 'bpm' : 'N/A';
+          
+          // Try to get HR zone distribution for this activity
+          let hrZoneText = '';
+          if (athlete?.birth_year) {
+            try {
+              const detailedAct = await stravaService.getActivityDetail(act.id);
+              if (detailedAct.streams?.heartrate) {
+                const maxHR = calculateMaxHeartRate(athlete.birth_year);
+                const zones = getHeartRateZones(maxHR);
+                const heartRateData = detailedAct.streams.heartrate;
+                const timeData = detailedAct.streams.time || [];
+
+                // Calculate zone distribution for this activity
+                const zoneDistribution = {
+                  zone1: 0, zone2: 0, zone3: 0, zone4: 0, zone5: 0
+                };
+
+                heartRateData.forEach((hr, index) => {
+                  if (hr && hr > 0) {
+                    const timeIncrement = index < timeData.length - 1 ? timeData[index + 1] - timeData[index] : 1;
+                    
+                    if (hr <= zones.zone1.max) {
+                      zoneDistribution.zone1 += timeIncrement;
+                    } else if (hr <= zones.zone2.max) {
+                      zoneDistribution.zone2 += timeIncrement;
+                    } else if (hr <= zones.zone3.max) {
+                      zoneDistribution.zone3 += timeIncrement;
+                    } else if (hr <= zones.zone4.max) {
+                      zoneDistribution.zone4 += timeIncrement;
+                    } else {
+                      zoneDistribution.zone5 += timeIncrement;
+                    }
+                  }
+                });
+
+                const totalTime = timeData[timeData.length - 1] || 1;
+                const zonePercentages = {
+                  z1: Math.round((zoneDistribution.zone1 / totalTime) * 100),
+                  z2: Math.round((zoneDistribution.zone2 / totalTime) * 100),
+                  z3: Math.round((zoneDistribution.zone3 / totalTime) * 100),
+                  z4: Math.round((zoneDistribution.zone4 / totalTime) * 100),
+                  z5: Math.round((zoneDistribution.zone5 / totalTime) * 100)
+                };
+
+                hrZoneText = `_HRZ:[z1:${zonePercentages.z1}%,z2:${zonePercentages.z2}%,z3:${zonePercentages.z3}%,z4:${zonePercentages.z4}%,z5:${zonePercentages.z5}%]`;
+              }
+            } catch (error) {
+              // Skip HR zone data if activity detail can't be loaded
+              console.log(`Skipping HR zones for activity ${act.id}:`, error);
+            }
+          }
+          
+          return `${act.name}(${act.type})_${date}:${distance}_${movingTime}_${avgSpeed}_${elevation}_HR:${avgHR}${hrZoneText}`;
+        }));
         
-        summary += `All_year_activities:[${allActivities}]`;
+        summary += `All_year_activities:[${allActivitiesWithHR.join('|')}]`;
       }
     } catch (error) {
       console.log('Could not load yearly context:', error);
