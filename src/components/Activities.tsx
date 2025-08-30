@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { stravaService } from '../services/stravaService';
 import { StravaActivity } from '../services/database';
 
 const Activities: React.FC = () => {
+  const { t } = useTranslation();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<StravaActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,11 +270,11 @@ const Activities: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="card">
-        <h1>Welcome to Athlete Insight</h1>
-        <p>Connect to Strava to start analyzing your activities.</p>
+        <h1>{t('activities.welcome')}</h1>
+        <p>{t('activities.connectToStart')}</p>
         {error && <div className="error">{error}</div>}
         <Link to="/settings" className="btn">
-          Go to Settings
+          {t('activities.goToSettings')}
         </Link>
       </div>
     );
@@ -282,22 +284,22 @@ const Activities: React.FC = () => {
     <div>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h1>Your Activities</h1>
+          <h1>{t('activities.title')}</h1>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button 
               onClick={fetchAllStreamData} 
               className="btn btn-secondary" 
               disabled={loading || loadingStreams || activities.length === 0}
-              title="Fetch detailed stream data for all visible activities"
+              title={t('activities.fetchStreamsTooltip')}
             >
               {loadingStreams ? (
-                `📊 Fetching... (${streamProgress.current}/${streamProgress.total})`
+                `📊 ${t('activities.fetchingStreams')} (${streamProgress.current}/${streamProgress.total})`
               ) : (
-                '📊 Fetch Streams'
+                `📊 ${t('activities.fetchStreams')}`
               )}
             </button>
             <button onClick={refreshActivities} className="btn" disabled={loading}>
-              {loading ? 'Loading...' : 'Refresh'}
+              {loading ? t('activities.loading') : t('activities.refresh')}
             </button>
           </div>
         </div>
@@ -307,7 +309,7 @@ const Activities: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label htmlFor="activity-type" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500' }}>
-                Activity Type
+                {t('activities.filterByType')}
               </label>
               <select 
                 id="activity-type"
@@ -315,7 +317,7 @@ const Activities: React.FC = () => {
                 onChange={(e) => handleFilterChange('type', e.target.value)}
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
               >
-                <option value="">All Types</option>
+                <option value="">{t('activities.allTypes')}</option>
                 {getUniqueActivityTypes().map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
@@ -324,12 +326,12 @@ const Activities: React.FC = () => {
             
             <div>
               <label htmlFor="activity-search" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500' }}>
-                Search Activities
+                {t('activities.searchActivities')}
               </label>
               <input
                 id="activity-search"
                 type="text"
-                placeholder="Search by name..."
+                placeholder={t('activities.searchPlaceholder')}
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -338,7 +340,7 @@ const Activities: React.FC = () => {
             
             <div>
               <label htmlFor="date-from" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500' }}>
-                From Date
+                {t('activities.fromDate')}
               </label>
               <input
                 id="date-from"
@@ -351,7 +353,7 @@ const Activities: React.FC = () => {
             
             <div>
               <label htmlFor="date-to" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500' }}>
-                To Date
+                {t('activities.toDate')}
               </label>
               <input
                 id="date-to"
@@ -390,11 +392,11 @@ const Activities: React.FC = () => {
         {error && <div className="error">{error}</div>}
         
         {filteredActivities.length === 0 && activities.length > 0 && (
-          <p>No activities match your filters. Try adjusting your search criteria.</p>
+          <p>{t('activities.noActivitiesMatchFilters')}</p>
         )}
         
         {filteredActivities.length === 0 && activities.length === 0 && (
-          <p>No activities found. Try refreshing or check your Strava account.</p>
+          <p>{t('activities.noActivitiesFound')}</p>
         )}
       </div>
 
@@ -432,14 +434,14 @@ const Activities: React.FC = () => {
             className="btn"
             disabled={loadingMore}
           >
-            {loadingMore ? 'Loading more...' : 'Load More Activities'}
+            {loadingMore ? t('activities.loadingMore') : t('activities.loadMore')}
           </button>
         </div>
       )}
       
       {!hasMoreData && activities.length > 0 && (
         <div style={{ textAlign: 'center', marginTop: '2rem', color: '#666' }}>
-          All activities loaded
+          {t('activities.allActivitiesLoaded')}
         </div>
       )}
     </div>

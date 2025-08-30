@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
 
 const ActivityDetail: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activity, setActivity] = useState<ActivityDetailType | null>(null);
@@ -603,7 +605,7 @@ const ActivityDetail: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="loading">Loading activity details...</div>;
+    return <div className="loading">{t('activityDetail.loading')}</div>;
   }
 
   if (error) {
@@ -611,7 +613,7 @@ const ActivityDetail: React.FC = () => {
       <div className="card">
         <div className="error">{error}</div>
         <button onClick={() => navigate('/activities')} className="btn">
-          Back to Activities
+          {t('activityDetail.backToActivities')}
         </button>
       </div>
     );
@@ -620,9 +622,9 @@ const ActivityDetail: React.FC = () => {
   if (!activity) {
     return (
       <div className="card">
-        <div className="error">Activity not found</div>
+        <div className="error">{t('activityDetail.notFound')}</div>
         <button onClick={() => navigate('/activities')} className="btn">
-          Back to Activities
+          {t('activityDetail.backToActivities')}
         </button>
       </div>
     );
@@ -652,15 +654,15 @@ const ActivityDetail: React.FC = () => {
               id="llm-summary-btn"
               onClick={copyLLMSummary} 
               className="btn btn-secondary"
-              title="Copy activity summary for LLM analysis"
+              title={t('activityDetail.llmSummaryTooltip')}
             >
-              📋 LLM Summary
+              {t('activityDetail.llmSummary')}
             </button>
             <button onClick={handleRefresh} className="btn" disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? t('activityDetail.refreshing') : t('activityDetail.refresh')}
             </button>
             <button onClick={() => navigate('/activities')} className="btn btn-secondary">
-              Back to Activities
+              {t('activityDetail.backToActivities')}
             </button>
           </div>
         </div>
@@ -670,30 +672,30 @@ const ActivityDetail: React.FC = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-value">{formatDistance(activity.distance)}</div>
-          <div className="stat-label">Distance</div>
+          <div className="stat-label">{t('activityDetail.distance')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">{formatDuration(activity.moving_time)}</div>
-          <div className="stat-label">Moving Time</div>
+          <div className="stat-label">{t('activityDetail.movingTime')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">{formatPace(activity.average_speed)}</div>
-          <div className="stat-label">Avg Pace</div>
+          <div className="stat-label">{t('activityDetail.avgPace')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">{activity.total_elevation_gain.toFixed(0)}m</div>
-          <div className="stat-label">Elevation Gain</div>
+          <div className="stat-label">{t('activityDetail.elevationGain')}</div>
         </div>
         {activity.average_heartrate && (
           <div className="stat-card">
             <div className="stat-value">{activity.average_heartrate.toFixed(0)}</div>
-            <div className="stat-label">Avg Heart Rate</div>
+            <div className="stat-label">{t('activityDetail.avgHeartRate')}</div>
           </div>
         )}
         {activity.average_watts && (
           <div className="stat-card">
             <div className="stat-value">{activity.average_watts.toFixed(0)}W</div>
-            <div className="stat-label">Avg Power</div>
+            <div className="stat-label">{t('activityDetail.avgPower')}</div>
           </div>
         )}
       </div>
@@ -701,15 +703,15 @@ const ActivityDetail: React.FC = () => {
       {/* Performance Analysis */}
       {effortAnalysis && (
         <div className="card">
-          <h3>Performance Analysis</h3>
+          <h3>{t('activityDetail.performanceAnalysis')}</h3>
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-value">{effortAnalysis.efficiency.toFixed(1)}</div>
-              <div className="stat-label">Avg Speed (km/h)</div>
+              <div className="stat-label">{t('activityDetail.avgSpeed')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{effortAnalysis.elevationRate.toFixed(1)}</div>
-              <div className="stat-label">Elevation Rate (m/km)</div>
+              <div className="stat-label">{t('activityDetail.elevationRate')}</div>
             </div>
             {effortAnalysis.intensityScore > 0 && (
               <div className="stat-card">
@@ -719,12 +721,12 @@ const ActivityDetail: React.FC = () => {
             )}
             <div className="stat-card">
               <div className="stat-value">{activity.streams ? '✓' : '✗'}</div>
-              <div className="stat-label">Stream Data</div>
+              <div className="stat-label">{t('activityDetail.streamData')}</div>
             </div>
           </div>
           {activity.streams && (
             <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
-              📊 Enhanced charts available with detailed GPS and sensor data
+              {t('activityDetail.streamDataAvailable')}
             </p>
           )}
         </div>
@@ -733,7 +735,7 @@ const ActivityDetail: React.FC = () => {
       {/* Split Analysis Chart */}
       {analysisData.length > 0 && (
         <div className="card">
-          <h3>Pace Analysis</h3>
+          <h3>{t('activityDetail.paceAnalysis')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analysisData}>
@@ -763,7 +765,7 @@ const ActivityDetail: React.FC = () => {
       {/* Elevation Profile */}
       {elevationData.length > 0 && (
         <div className="card">
-          <h3>Elevation Profile</h3>
+          <h3>{t('activityDetail.elevationProfile')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={elevationData}>
@@ -781,7 +783,7 @@ const ActivityDetail: React.FC = () => {
       {/* Heart Rate Chart */}
       {heartRateData.length > 0 && (
         <div className="card">
-          <h3>Heart Rate Over Time</h3>
+          <h3>{t('activityDetail.heartRateOverTime')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={heartRateData}>
@@ -799,11 +801,14 @@ const ActivityDetail: React.FC = () => {
       {/* Heart Rate Zone Distribution */}
       {getHeartRateZoneDistribution().length > 0 && (
         <div className="card">
-          <h3>Heart Rate Zone Distribution</h3>
+          <h3>{t('activityDetail.heartRateZoneDistribution')}</h3>
           {athlete?.birth_year ? (
             <div>
               <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-                Based on estimated max HR: {calculateMaxHeartRate(athlete.birth_year)} bpm (Age: {new Date().getFullYear() - athlete.birth_year})
+                {t('activityDetail.maxHRDescription', { 
+                  maxHR: calculateMaxHeartRate(athlete.birth_year), 
+                  age: new Date().getFullYear() - athlete.birth_year 
+                })}
               </p>
               <div className="chart-container">
                 <ResponsiveContainer width="100%" height={300}>
@@ -846,7 +851,7 @@ const ActivityDetail: React.FC = () => {
           ) : (
             <div>
               <p style={{ color: '#666', marginBottom: '1rem' }}>
-                To see heart rate zone distribution, please set your birth year in settings.
+                {t('activityDetail.setBirthYearForZones')}
               </p>
               <button onClick={() => navigate('/settings')} className="btn">
                 Go to Settings
@@ -859,7 +864,7 @@ const ActivityDetail: React.FC = () => {
       {/* Relative Effort Analysis */}
       {calculateRelativeEffortPoints() && (
         <div className="card">
-          <h3>Relative Effort Analysis</h3>
+          <h3>{t('activityDetail.relativeEffortAnalysis')}</h3>
           {(() => {
             const effortData = calculateRelativeEffortPoints();
             if (!effortData) return null;
@@ -872,15 +877,15 @@ const ActivityDetail: React.FC = () => {
                 <div className="stats-grid">
                   <div className="stat-card">
                     <div className="stat-value">{effortData.totalPoints}</div>
-                    <div className="stat-label">Total Effort Points</div>
+                    <div className="stat-label">{t('activityDetail.totalEffortPoints')}</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-value">{effortData.relativeScore}</div>
-                    <div className="stat-label">Relative Effort Score</div>
+                    <div className="stat-label">{t('activityDetail.relativeEffortScore')}</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-value">{effortData.intensityFactor}</div>
-                    <div className="stat-label">Intensity Factor</div>
+                    <div className="stat-label">{t('activityDetail.intensityFactor')}</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-value">{effortData.timeInZones}min</div>
@@ -888,7 +893,7 @@ const ActivityDetail: React.FC = () => {
                   </div>
                 </div>
                 <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                  <h4 style={{ marginBottom: '0.5rem' }}>Zone Multipliers:</h4>
+                  <h4 style={{ marginBottom: '0.5rem' }}>{t('activityDetail.zoneMultipliers')}:</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', fontSize: '0.9rem' }}>
                     <div>🔵 Zone 1 (Recovery): ×{effortData.zoneMultipliers.zone1}</div>
                     <div>🟢 Zone 2 (Aerobic Base): ×{effortData.zoneMultipliers.zone2}</div>
@@ -904,14 +909,14 @@ const ActivityDetail: React.FC = () => {
                 {/* Effort Comparison Chart */}
                 <div style={{ marginTop: '2rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h4>Effort Comparison</h4>
+                    <h4>{t('activityDetail.effortComparison')}</h4>
                     <select 
                       value={comparisonPeriod} 
                       onChange={(e) => setComparisonPeriod(e.target.value as 'month' | 'year')}
                       style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
                     >
-                      <option value="month">Same Month</option>
-                      <option value="year">Same Year</option>
+                      <option value="month">{t('activityDetail.month')}</option>
+                      <option value="year">{t('activityDetail.year')}</option>
                     </select>
                   </div>
                   
@@ -1006,7 +1011,7 @@ const ActivityDetail: React.FC = () => {
       {/* Speed Chart */}
       {analysisData.length > 0 && analysisData.some(d => d.speed > 0) && (
         <div className="card">
-          <h3>Speed Analysis</h3>
+          <h3>{t('activityDetail.speedAnalysis')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analysisData}>

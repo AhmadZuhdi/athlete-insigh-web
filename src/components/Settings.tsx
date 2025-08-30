@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { stravaService } from '../services/stravaService';
 import { StravaSettings, StravaAthlete, db } from '../services/database';
 
 const Settings: React.FC = () => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<Partial<StravaSettings>>({
     clientId: '',
     clientSecret: ''
@@ -250,7 +252,7 @@ const Settings: React.FC = () => {
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h1>Strava API Settings</h1>
+        <h1>{t('settings.title')}</h1>
         <span style={{ 
           fontSize: '0.9rem', 
           color: '#666', 
@@ -259,7 +261,7 @@ const Settings: React.FC = () => {
           borderRadius: '4px',
           border: '1px solid #dee2e6'
         }}>
-          v0.1.3
+          {t('app.version')}
         </span>
       </div>
       
@@ -271,41 +273,41 @@ const Settings: React.FC = () => {
 
       <form onSubmit={handleSave}>
         <div className="form-group">
-          <label htmlFor="clientId">Client ID</label>
+          <label htmlFor="clientId">{t('settings.clientId')}</label>
           <input
             type="text"
             id="clientId"
             name="clientId"
             value={settings.clientId || ''}
             onChange={handleInputChange}
-            placeholder="Your Strava app Client ID"
+            placeholder={t('settings.clientIdPlaceholder')}
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="clientSecret">Client Secret</label>
+          <label htmlFor="clientSecret">{t('settings.clientSecret')}</label>
           <input
             type="password"
             id="clientSecret"
             name="clientSecret"
             value={settings.clientSecret || ''}
             onChange={handleInputChange}
-            placeholder="Your Strava app Client Secret"
+            placeholder={t('settings.clientSecretPlaceholder')}
             required
           />
         </div>
 
         <button type="submit" className="btn" disabled={saving}>
-          {saving ? 'Saving...' : 'Save Settings'}
+          {saving ? t('settings.saving') : t('settings.saveSettings')}
         </button>
       </form>
 
       <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
-        <h3>Strava Connection</h3>
+        <h3>{t('settings.stravaConnection')}</h3>
         {isAuthenticated ? (
           <div>
-            <p style={{ color: 'green', marginBottom: '1rem' }}>✓ Connected to Strava</p>
+            <p style={{ color: 'green', marginBottom: '1rem' }}>✓ {t('settings.connected')}</p>
             <button onClick={handleLogout} className="btn btn-secondary">
               Disconnect
             </button>
