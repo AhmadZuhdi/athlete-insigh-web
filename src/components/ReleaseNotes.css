@@ -1,0 +1,195 @@
+.release-notes-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.release-notes-container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.release-notes-intro {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.releases-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.release-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.release-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.release-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.release-version-info {
+  flex-grow: 1;
+}
+
+.release-version {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #0066cc;
+  margin: 0 0 0.5rem 0;
+}
+
+.release-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.release-date {
+  font-size: 0.95rem;
+  color: #888;
+  margin: 0;
+}
+
+.release-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.release-description {
+  font-size: 1rem;
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.release-section {
+  margin-bottom: 1.5rem;
+}
+
+.release-section:last-child {
+  margin-bottom: 0;
+}
+
+.release-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.release-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.release-list li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: #555;
+  line-height: 1.6;
+}
+
+.release-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #0066cc;
+  font-weight: bold;
+}
+
+.release-footer {
+  text-align: center;
+  padding: 2rem;
+  background: #f5f9ff;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.release-footer p {
+  margin: 0;
+  font-size: 1rem;
+  color: #555;
+}
+
+.release-footer a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.release-footer a:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .release-notes-container {
+    padding: 1rem;
+  }
+
+  .release-notes-container h1 {
+    font-size: 1.8rem;
+  }
+
+  .release-card {
+    padding: 1.5rem;
+  }
+
+  .release-header {
+    flex-direction: column;
+  }
+
+  .release-badge {
+    align-self: flex-start;
+  }
+
+  .release-version {
+    font-size: 1.5rem;
+  }
+
+  .release-title {
+    font-size: 1.1rem;
+  }
+
+  .release-section-title {
+    font-size: 1rem;
+  }
+
+  .release-list li {
+    font-size: 0.95rem;
+  }
+}
