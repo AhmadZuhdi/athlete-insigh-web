@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import MultiMetricChart from './MultiMetricChart';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
 
@@ -698,6 +699,11 @@ const ActivityDetail: React.FC = () => {
         )}
       </div>
 
+      {/* Multi-Metric Overview Chart */}
+      {analysisData.length > 0 && (
+        <MultiMetricChart data={analysisData} title="Multi-Metric Overview" />
+      )}
+
       {/* Performance Analysis */}
       {effortAnalysis && (
         <div className="card">
@@ -753,7 +759,7 @@ const ActivityDetail: React.FC = () => {
                     return [value, name];
                   }}
                 />
-                <Line type="monotone" dataKey="pace" stroke="#fc4c02" strokeWidth={2} />
+                <Line type="monotone" dataKey="pace" stroke="#fc4c02" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -771,7 +777,7 @@ const ActivityDetail: React.FC = () => {
                 <XAxis dataKey="distance" label={{ value: 'Distance (km)', position: 'insideBottom', offset: -5 }} />
                 <YAxis label={{ value: 'Elevation (m)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="altitude" stroke="#28a745" strokeWidth={2} fill="#28a745" />
+                <Line type="monotone" dataKey="altitude" stroke="#28a745" strokeWidth={2} fill="#28a745" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -789,7 +795,7 @@ const ActivityDetail: React.FC = () => {
                 <XAxis dataKey="time" label={{ value: 'Time (minutes)', position: 'insideBottom', offset: -5 }} />
                 <YAxis label={{ value: 'Heart Rate (bpm)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="heartrate" stroke="#dc3545" strokeWidth={2} />
+                <Line type="monotone" dataKey="heartrate" stroke="#dc3545" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -963,18 +969,7 @@ const ActivityDetail: React.FC = () => {
                               dataKey="effort" 
                               stroke="#007bff" 
                               strokeWidth={2}
-                              dot={(props) => {
-                                const { payload } = props;
-                                return (
-                                  <circle
-                                    {...props}
-                                    fill={payload.isCurrentActivity ? '#ff6b6b' : '#007bff'}
-                                    stroke={payload.isCurrentActivity ? '#ff6b6b' : '#007bff'}
-                                    strokeWidth={2}
-                                    r={payload.isCurrentActivity ? 6 : 4}
-                                  />
-                                );
-                              }}
+                              dot={false}
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -1017,7 +1012,7 @@ const ActivityDetail: React.FC = () => {
                 />
                 <YAxis label={{ value: 'Speed (km/h)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="speed" stroke="#007bff" strokeWidth={2} />
+                <Line type="monotone" dataKey="speed" stroke="#007bff" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
