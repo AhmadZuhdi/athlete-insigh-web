@@ -127,11 +127,23 @@ export interface ActivityDetail extends StravaActivity {
   streams?: StreamData;
 }
 
+export interface ActivitySegment {
+  id?: number;
+  activityId: number;
+  distanceKm: number;
+  timeSecs: number;
+  pace: number; // min/km
+  avgSpeed: number; // km/h
+  dataQuality: 'stream-precise' | 'split-approximate';
+  calculatedAt: number;
+}
+
 export class AthleteInsightDB extends Dexie {
   settings!: Table<StravaSettings>;
   activities!: Table<StravaActivity>;
   activityDetails!: Table<ActivityDetail>;
   athlete!: Table<StravaAthlete>;
+  activitySegments!: Table<ActivitySegment>;
 
   constructor() {
     super('AthleteInsightDB');
@@ -143,15 +155,25 @@ export class AthleteInsightDB extends Dexie {
       activityDetails: 'id, name, start_date_local, type',
       athlete: 'id, firstname, lastname'
     });
+
+    // Version 5 - Add activity segments for time-based personal records
+    this.version(5).stores({
+      settings: '++id, clientId, clientSecret',
+      activities: 'id, name, start_date_local, type',
+      activityDetails: 'id, name, start_date_local, type',
+      athlete: 'id, firstname, lastname',
+      activitySegments: '++id, activityId, distanceKm, pace'
+    });
   }
 
   async clearAllData(): Promise<void> {
     try {
-      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, async () => {
+      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, async () => {
         await this.settings.clear();
         await this.activities.clear();
         await this.activityDetails.clear();
         await this.athlete.clear();
+        await this.activitySegments.clear();
       });
     } catch (error) {
       console.error('Error clearing database:', error);
@@ -169,12 +191,13 @@ export class AthleteInsightDB extends Dexie {
   async exportData(): Promise<string> {
     try {
       const data = {
-        version: 4,
+        version: 5,
         timestamp: new Date().toISOString(),
         settings: await this.settings.toArray(),
         activities: await this.activities.toArray(),
         activityDetails: await this.activityDetails.toArray(),
-        athlete: await this.athlete.toArray()
+        athlete: await this.athlete.toArray(),
+        activitySegments: await this.activitySegments.toArray()
       };
       return JSON.stringify(data, null, 2);
     } catch (error) {
@@ -196,7 +219,7 @@ export class AthleteInsightDB extends Dexie {
       await this.clearAllData();
 
       // Import data
-      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, async () => {
+      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, async () => {
         if (data.settings && Array.isArray(data.settings)) {
           await this.settings.bulkAdd(data.settings);
         }
@@ -209,13 +232,17 @@ export class AthleteInsightDB extends Dexie {
         if (data.athlete && Array.isArray(data.athlete)) {
           await this.athlete.bulkAdd(data.athlete);
         }
+        if (data.activitySegments && Array.isArray(data.activitySegments)) {
+          await this.activitySegments.bulkAdd(data.activitySegments);
+        }
       });
 
       console.log('Data imported successfully:', {
         settings: data.settings?.length || 0,
         activities: data.activities?.length || 0,
         activityDetails: data.activityDetails?.length || 0,
-        athlete: data.athlete?.length || 0
+        athlete: data.athlete?.length || 0,
+        activitySegments: data.activitySegments?.length || 0
       });
     } catch (error) {
       console.error('Error importing data:', error);

@@ -1,4 +1,4 @@
-import { db, StravaSettings, StravaActivity, ActivityDetail, StreamData, StravaAthlete } from './database';
+import { db, StravaSettings, StravaActivity, ActivityDetail, StreamData, StravaAthlete, ActivitySegment } from './database';
 
 const STRAVA_BASE_URL = 'https://www.strava.com/api/v3';
 const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
@@ -315,6 +315,260 @@ export class StravaService {
 
   async getDataStats() {
     return await db.getDataStats();
+  }
+
+  // ============ SEGMENT CALCULATION FOR TIME-BASED PERSONAL RECORDS ============
+
+  /**
+   * Standard race distances to track (in kilometers)
+   */
+  private static readonly STANDARD_DISTANCES = [5, 10, 15, 20, 21.1, 30, 42.2];
+
+  /**
+   * Extract segment time from stream data (most accurate)
+   * Uses linear interpolation for precise timing at exact distances
+   */
+  private extractSegmentTimeFromStreams(
+    activity: ActivityDetail,
+    targetDistanceKm: number
+  ): { time: number; pace: number } | null {
+    if (!activity.streams?.distance || !activity.streams?.time) {
+      return null;
+    }
+
+    const distanceArray = activity.streams.distance; // meters
+    const timeArray = activity.streams.time; // seconds
+    const targetDistanceM = targetDistanceKm * 1000;
+
+    // Check if activity covers target distance
+    const totalDistanceM = distanceArray.at(-1) || 0;
+    if (totalDistanceM < targetDistanceM) {
+      return null;
+    }
+
+    // Find the index where we cross the target distance
+    let endIndex = distanceArray.findIndex(d => d >= targetDistanceM);
+    if (endIndex === -1) {
+      return null;
+    }
+
+    // Get surrounding data points for interpolation
+    const startIndex = Math.max(0, endIndex - 1);
+    const startDistance = distanceArray[startIndex];
+    const endDistance = distanceArray[endIndex];
+    const startTime = timeArray[startIndex];
+    const endTime = timeArray[endIndex];
+
+    // Linear interpolation for precise timing at exact target distance
+    const interpolationFactor =
+      endDistance === startDistance
+        ? 0
+        : (targetDistanceM - startDistance) / (endDistance - startDistance);
+    
+    const finalTime = startTime + interpolationFactor * (endTime - startTime);
+
+    return {
+      time: finalTime, // seconds
+      pace: (finalTime / 60) / targetDistanceKm // min/km
+    };
+  }
+
+  /**
+   * Extract segment time from split data (fallback)
+   * Limited to 1km boundaries but works when streams unavailable
+   */
+  private extractSegmentTimeFromSplits(
+    activity: ActivityDetail,
+    targetDistanceKm: number
+  ): { time: number; pace: number } | null {
+    if (!activity.splits_metric || activity.splits_metric.length === 0) {
+      return null;
+    }
+
+    // Check if activity is long enough
+    if (activity.splits_metric.length < targetDistanceKm) {
+      return null;
+    }
+
+    // Get splits up to target distance (array indices are 0-based)
+    const splitsToSum = activity.splits_metric.slice(0, Math.round(targetDistanceKm));
+
+    const totalTime = splitsToSum.reduce((sum, split) => sum + (split.moving_time || 0), 0);
+
+    return {
+      time: totalTime, // seconds
+      pace: (totalTime / 60) / targetDistanceKm // min/km
+    };
+  }
+
+  /**
+   * Extract segment time using hybrid approach
+   * Tries streams first (precise), falls back to splits (approximate)
+   */
+  async extractSegmentTime(
+    activity: ActivityDetail,
+    targetDistanceKm: number
+  ): Promise<ActivitySegment | null> {
+    // Try streams first (most accurate)
+    let result = this.extractSegmentTimeFromStreams(activity, targetDistanceKm);
+    let quality: 'stream-precise' | 'split-approximate' = 'stream-precise';
+
+    // Fall back to splits if streams unavailable
+    if (!result) {
+      result = this.extractSegmentTimeFromSplits(activity, targetDistanceKm);
+      quality = 'split-approximate';
+    }
+
+    if (!result) {
+      return null;
+    }
+
+    // Calculate average speed: (km / seconds) * 3600 = km/h
+    const avgSpeed = (targetDistanceKm / result.time) * 3600;
+
+    return {
+      activityId: activity.id,
+      distanceKm: targetDistanceKm,
+      timeSecs: result.time,
+      pace: result.pace,
+      avgSpeed: avgSpeed,
+      dataQuality: quality,
+      calculatedAt: Date.now()
+    };
+  }
+
+  /**
+   * Calculate all standard distance segments for an activity
+   */
+  async calculateSegmentsForActivity(
+    activityId: number,
+    distances: number[] = StravaService.STANDARD_DISTANCES
+  ): Promise<ActivitySegment[]> {
+    try {
+      const activity = await db.activityDetails.get(activityId);
+      if (!activity) {
+        console.warn(`Activity ${activityId} not found`);
+        return [];
+      }
+
+      const segments: ActivitySegment[] = [];
+
+      for (const distance of distances) {
+        const segment = await this.extractSegmentTime(activity, distance);
+        if (segment) {
+          segments.push(segment);
+        }
+      }
+
+      // Save to database if any segments found
+      if (segments.length > 0) {
+        await db.activitySegments.bulkAdd(segments);
+      }
+
+      return segments;
+    } catch (error) {
+      console.error(`Error calculating segments for activity ${activityId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get personal record for a specific distance
+   */
+  async getPersonalRecordForDistance(
+    distanceKm: number,
+    activityType?: string
+  ): Promise<(ActivitySegment & { activity: StravaActivity }) | null> {
+    try {
+      const segments = await db.activitySegments
+        .where('distanceKm')
+        .equals(distanceKm)
+        .toArray();
+
+      if (segments.length === 0) {
+        return null;
+      }
+
+      // Find fastest (lowest pace)
+      let fastest = segments[0];
+      for (const segment of segments) {
+        if (segment.pace < fastest.pace) {
+          fastest = segment;
+        }
+      }
+
+      // Get associated activity
+      const activity = await db.activities.get(fastest.activityId);
+      if (!activity) {
+        return null;
+      }
+
+      return {
+        ...fastest,
+        activity
+      };
+    } catch (error) {
+      console.error(`Error getting PR for ${distanceKm}km:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all personal records for all standard distances
+   */
+  async getAllPersonalRecords(): Promise<
+    Map<number, (ActivitySegment & { activity: StravaActivity }) | null>
+  > {
+    const records = new Map<number, (ActivitySegment & { activity: StravaActivity }) | null>();
+
+    for (const distance of StravaService.STANDARD_DISTANCES) {
+      const pr = await this.getPersonalRecordForDistance(distance);
+      records.set(distance, pr);
+    }
+
+    return records;
+  }
+
+  /**
+   * Recalculate segments for all cached activities
+   * Useful after importing data or updating activity cache
+   */
+  async recalculateAllSegments(
+    progressCallback?: (current: number, total: number) => void
+  ): Promise<number> {
+    try {
+      const activities = await db.activityDetails.toArray();
+      let calculatedCount = 0;
+
+      for (let i = 0; i < activities.length; i++) {
+        const segments = await this.calculateSegmentsForActivity(activities[i].id);
+        if (segments.length > 0) {
+          calculatedCount++;
+        }
+
+        if (progressCallback) {
+          progressCallback(i + 1, activities.length);
+        }
+      }
+
+      console.log(`Recalculated segments for ${calculatedCount} activities`);
+      return calculatedCount;
+    } catch (error) {
+      console.error('Error recalculating all segments:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Clear all cached segments (e.g., when resetting database)
+   */
+  async clearSegments(): Promise<void> {
+    try {
+      await db.activitySegments.clear();
+    } catch (error) {
+      console.error('Error clearing segments:', error);
+      throw error;
+    }
   }
 }
 

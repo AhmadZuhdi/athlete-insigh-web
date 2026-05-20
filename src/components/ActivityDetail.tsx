@@ -11,6 +11,8 @@ const ActivityDetail: React.FC = () => {
   const [activity, setActivity] = useState<ActivityDetailType | null>(null);
   const [athlete, setAthlete] = useState<StravaAthlete | null>(null);
   const [loading, setLoading] = useState(true);
+  const [segmentProgress, setSegmentProgress] = useState({ current: 0, total: 0 });
+  const [activitySegments, setActivitySegments] = useState<Map<number, any>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [comparisonPeriod, setComparisonPeriod] = useState<'month' | 'year'>('month');
   const [comparisonData, setComparisonData] = useState<any[]>([]);
@@ -19,6 +21,8 @@ const ActivityDetail: React.FC = () => {
     if (id) {
       loadActivityDetail(parseInt(id));
       loadAthlete();
+      // Load segments for this activity with progress tracking
+      loadActivitySegments(parseInt(id));
     }
   }, [id]);
 
@@ -197,6 +201,39 @@ const ActivityDetail: React.FC = () => {
     }
   };
 
+  const loadActivitySegments = async (activityId: number) => {
+    try {
+      setSegmentProgress({ current: 0, total: 7 });
+      const distances = [5, 10, 15, 20, 21.1, 30, 42.2];
+      const segments = new Map();
+      
+      // Ensure segments are calculated for this activity
+      for (let i = 0; i < distances.length; i++) {
+        try {
+          await stravaService.calculateSegmentsForActivity(activityId);
+          
+          // Get the segment data for this distance
+          const pr = await stravaService.getPersonalRecordForDistance(distances[i]);
+          if (pr && pr.activity.id === activityId) {
+            segments.set(distances[i], pr);
+          }
+        } catch (error) {
+          console.warn(`Error calculating segment for activity ${activityId}:`, error);
+        }
+        setSegmentProgress({ current: i + 1, total: 7 });
+      }
+      
+      setActivitySegments(segments);
+      if (segments.size > 0) {
+        console.log(`${segments.size} segment PRs found for activity ${activityId}`);
+      }
+    } catch (error) {
+      console.warn('Error loading activity segments:', error);
+    } finally {
+      setSegmentProgress({ current: 0, total: 0 });
+    }
+  };
+
   const loadAthlete = async () => {
     try {
       const athleteData = await stravaService.getAthlete();
@@ -313,6 +350,23 @@ const ActivityDetail: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const formatSegmentTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    }
+    return `${minutes}m ${secs}s`;
+  };
+
+  const formatSegmentPace = (minPerKm: number): string => {
+    const minutes = Math.floor(minPerKm);
+    const seconds = Math.round((minPerKm - minutes) * 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
   };
 
   const getAnalysisData = () => {
@@ -648,7 +702,19 @@ const ActivityDetail: React.FC = () => {
               <p style={{ fontStyle: 'italic' }}>{activity.description}</p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {segmentProgress.total > 0 && (
+              <div style={{ 
+                padding: '0.5rem 1rem', 
+                backgroundColor: '#e3f2fd', 
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                color: '#1976d2',
+                whiteSpace: 'nowrap'
+              }}>
+                ⚙️ Segments: {segmentProgress.current}/{segmentProgress.total}
+              </div>
+            )}
             <button 
               id="llm-summary-btn"
               onClick={copyLLMSummary} 
@@ -1015,6 +1081,40 @@ const ActivityDetail: React.FC = () => {
                 <Line type="monotone" dataKey="speed" stroke="#007bff" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Distance-Based Records for This Activity */}
+      {activitySegments.size > 0 && (
+        <div className="card">
+          <h3>Distance-Based Records 🎯</h3>
+          <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+            Personal records achieved in this activity:
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+            {Array.from(activitySegments.entries()).map(([distance, pr]) => (
+              <div key={distance} style={{
+                padding: '1rem',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px',
+                border: '2px solid #28a745',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#28a745', marginBottom: '0.5rem' }}>
+                  {distance}km
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333', marginBottom: '0.5rem' }}>
+                  {formatSegmentTime(pr.timeSecs)}
+                </div>
+                <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                  {formatSegmentPace(pr.pace)}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#999' }}>
+                  {pr.dataQuality === 'stream-precise' ? '🎯 GPS' : '📊 Est'}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

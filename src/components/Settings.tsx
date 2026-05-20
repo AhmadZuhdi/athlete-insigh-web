@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
 import { StravaSettings, StravaAthlete, db } from '../services/database';
 
@@ -506,6 +507,30 @@ const Settings: React.FC = () => {
           <li>Copy the Client ID and Client Secret here</li>
           <li>Save settings and connect to Strava</li>
         </ol>
+      </div>
+
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+        <h3>Release Notes</h3>
+        <p style={{ fontSize: '0.95rem', color: '#666', marginBottom: '1rem' }}>
+          View the complete version history and release notes for Athlete Insight.
+        </p>
+        <Link 
+          to="/release-notes"
+          style={{
+            display: 'inline-block',
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#0066cc',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            fontWeight: '500',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0052a3'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0066cc'}
+        >
+          📋 View Release Notes
+        </Link>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
-import { StravaActivity } from '../services/database';
+import { StravaActivity, db } from '../services/database';
 
 const Activities: React.FC = () => {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
@@ -10,6 +10,9 @@ const Activities: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingStreams, setLoadingStreams] = useState(false);
   const [streamProgress, setStreamProgress] = useState({ current: 0, total: 0 });
+  const [segmentProgress, setSegmentProgress] = useState({ current: 0, total: 0 });
+  const [calculatingAllPRs, setCalculatingAllPRs] = useState(false);
+  const [allPRsProgress, setAllPRsProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,6 +63,8 @@ const Activities: React.FC = () => {
 
   useEffect(() => {
     checkAuthAndLoadActivities();
+    // Initialize segments for cached activities (Phase 2)
+    initializeSegments();
   }, []);
 
   useEffect(() => {
@@ -173,6 +178,51 @@ const Activities: React.FC = () => {
     setLoading(false);
   };
 
+  const initializeSegments = async () => {
+    try {
+      // Check if we need to calculate segments for cached activities
+      const cachedActivities = await stravaService.getCachedActivities();
+      const existingSegments = await db.activitySegments.toArray();
+      
+      // Only run if we have activities but no segments yet
+      if (cachedActivities.length > 0 && existingSegments.length === 0) {
+        console.log(`Initializing segments for ${cachedActivities.length} cached activities...`);
+        
+        // Calculate segments in background (non-blocking)
+        setImmediate(async () => {
+          try {
+            let calculatedCount = 0;
+            setSegmentProgress({ current: 0, total: cachedActivities.length });
+            
+            for (let i = 0; i < cachedActivities.length; i++) {
+              const activity = cachedActivities[i];
+              const segments = await stravaService.calculateSegmentsForActivity(activity.id);
+              
+              if (segments.length > 0) {
+                calculatedCount++;
+              }
+              
+              // Update progress
+              setSegmentProgress({ current: i + 1, total: cachedActivities.length });
+              
+              // Small delay to avoid blocking
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            console.log(`Segment initialization complete: ${calculatedCount} activities processed`);
+            // Clear progress after completion
+            setSegmentProgress({ current: 0, total: 0 });
+          } catch (error) {
+            console.warn('Error during segment initialization:', error);
+            setSegmentProgress({ current: 0, total: 0 });
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('Segment initialization check failed:', error);
+    }
+  };
+
   const fetchAllStreamData = async () => {
     if (!isAuthenticated || loadingStreams) return;
     
@@ -219,6 +269,43 @@ const Activities: React.FC = () => {
     } finally {
       setLoadingStreams(false);
       setStreamProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const calculateAllActivityPRs = async () => {
+    if (!activities || activities.length === 0) return;
+    
+    setCalculatingAllPRs(true);
+    setAllPRsProgress({ current: 0, total: activities.length });
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (let i = 0; i < activities.length; i++) {
+        try {
+          const activity = activities[i];
+          await stravaService.calculateSegmentsForActivity(activity.id);
+          successCount++;
+        } catch (error) {
+          console.warn(`Error calculating PRs for activity:`, error);
+          errorCount++;
+        }
+        setAllPRsProgress({ current: i + 1, total: activities.length });
+      }
+
+      // Show completion message
+      const message = `PR calculation completed: ${successCount} successful, ${errorCount} failed`;
+      if (errorCount === 0) {
+        alert(`✅ ${message}`);
+      } else {
+        alert(`⚠️ ${message}`);
+      }
+    } catch (error) {
+      console.error('Error during bulk PR calculation:', error);
+      setError('Failed to calculate PRs. Please try again.');
+    } finally {
+      setCalculatingAllPRs(false);
+      setAllPRsProgress({ current: 0, total: 0 });
     }
   };
 
@@ -283,7 +370,41 @@ const Activities: React.FC = () => {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h1>Your Activities</h1>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {segmentProgress.total > 0 && (
+              <div style={{ 
+                padding: '0.5rem 1rem', 
+                backgroundColor: '#e3f2fd', 
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                color: '#1976d2'
+              }}>
+                ⚙️ Segments: {segmentProgress.current}/{segmentProgress.total}
+              </div>
+            )}
+            {allPRsProgress.total > 0 && (
+              <div style={{ 
+                padding: '0.5rem 1rem', 
+                backgroundColor: '#fff3cd', 
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                color: '#856404'
+              }}>
+                🎯 PRs: {allPRsProgress.current}/{allPRsProgress.total}
+              </div>
+            )}
+            <button 
+              onClick={calculateAllActivityPRs} 
+              className="btn btn-secondary" 
+              disabled={loading || calculatingAllPRs || activities.length === 0}
+              title="Calculate distance-based PRs for all activities"
+            >
+              {calculatingAllPRs ? (
+                `🎯 Calculating... (${allPRsProgress.current}/${allPRsProgress.total})`
+              ) : (
+                '🎯 Calculate All PRs'
+              )}
+            </button>
             <button 
               onClick={fetchAllStreamData} 
               className="btn btn-secondary" 
