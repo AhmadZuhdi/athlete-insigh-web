@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import Settings from './components/Settings';
 import Activities from './components/Activities';
 import ActivityDetail from './components/ActivityDetail';
+import ActivityMap from './components/ActivityMap';
 import PersonalRecords from './components/PersonalRecords';
 import ReleaseNotes from './components/ReleaseNotes';
 import './App.css';
@@ -48,6 +49,7 @@ function App() {
           <Route path="/records" element={<PersonalRecords />} />
           <Route path="/release-notes" element={<ReleaseNotes />} />
           <Route path="/activity/:id" element={<ActivityDetail />} />
+          <Route path="/activity/:id/map" element={<ActivityMap />} />
         </Routes>
       </div>
     </div>

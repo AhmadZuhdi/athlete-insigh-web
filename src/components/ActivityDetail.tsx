@@ -716,13 +716,19 @@ const ActivityDetail: React.FC = () => {
               </div>
             )}
             <button 
-              id="llm-summary-btn"
-              onClick={copyLLMSummary} 
-              className="btn btn-secondary"
-              title="Copy activity summary for LLM analysis"
-            >
-              📋 LLM Summary
-            </button>
+               id="llm-summary-btn"
+               onClick={copyLLMSummary} 
+               className="btn btn-secondary"
+               title="Copy activity summary for LLM analysis"
+             >
+               📋 LLM Summary
+             </button>
+             <button 
+               onClick={() => navigate(`/activity/${id}/map`)} 
+               className="btn btn-secondary"
+             >
+               🗺️ Map View
+             </button>
             <button onClick={handleRefresh} className="btn" disabled={loading}>
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
