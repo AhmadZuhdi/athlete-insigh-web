@@ -9,10 +9,38 @@ interface Release {
   features?: string[];
   improvements?: string[];
   bugFixes?: string[];
+  dependencies?: string[];
 }
 
 const ReleaseNotes: React.FC = () => {
   const releases: Release[] = [
+    {
+      version: '1.3.0',
+      date: 'May 21, 2026',
+      title: 'Interactive Map View & Multi-Metric Charts',
+      description: 'New map visualization and unified metric overview for activity analysis',
+      features: [
+        'Interactive map view with heatmap-style route coloring (green → yellow → red)',
+        'Route line colored by metric intensity: Heart Rate, Speed, Elevation, Power, Cadence',
+        '4 map tile layers: Streets, Dark (default), Satellite, Topographic',
+        'Configurable map height via slider (300–1000px)',
+        'Hover tooltips showing metric values on route',
+        'Color legend with min/max values for selected metric',
+        'Multi-Metric Overview Chart with toggleable lines (Pace, Speed, Elevation, HR, Altitude)',
+        'Dynamic X-axis (distance or time) based on available data',
+        'Custom pace formatter (min:sec)'
+      ],
+      improvements: [
+        'Removed data points from line charts for cleaner visuals',
+        'Added TypeScript type definitions for Leaflet',
+        'Reorganized dependencies in package.json'
+      ],
+      dependencies: [
+        'leaflet@^1.9.4',
+        'react-leaflet@^4.2.1',
+        '@types/leaflet@^1.9.21'
+      ]
+    },
     {
       version: '1.2.0',
       date: 'October 19, 2025',
@@ -114,6 +142,17 @@ const ReleaseNotes: React.FC = () => {
             <ul className="release-list">
               {release.bugFixes.map((fix, idx) => (
                 <li key={idx}>{fix}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {release.dependencies && release.dependencies.length > 0 && (
+          <div className="release-section">
+            <h3 className="release-section-title">📦 Dependencies</h3>
+            <ul className="release-list">
+              {release.dependencies.map((dep, idx) => (
+                <li key={idx}>{dep}</li>
               ))}
             </ul>
           </div>
