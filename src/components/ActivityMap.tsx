@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { stravaService } from '../services/stravaService';
@@ -85,43 +85,52 @@ const METRICS: MetricDef[] = [
 ];
 
 const SAMPLE_COUNT = 200;
-let tooltipInstance: L.Tooltip | null = null;
-let lastValidPosition: [number, number] | null = null;
 
-function FitMapToBounds({ bounds, onMapRef }: { bounds: [number, number][]; onMapRef: (map: L.Map) => void }) {
+function FitMapToBounds({ bounds }: { bounds: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
-    onMapRef(map);
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [0.05, 0.05] });
     }
-  }, [map, bounds, onMapRef]);
+  }, [map, bounds]);
   return null;
 }
 
 function HoverTooltip({ position, content }: { position: [number, number] | null; content: string }) {
   const map = useMap();
+  const tooltipRef = useRef<L.Tooltip | null>(null);
+  const lastPosRef = useRef<[number, number] | null>(null);
+
   useEffect(() => {
-    if (!tooltipInstance) {
+    if (!tooltipRef.current) {
       const initialPos = position || [0, 0];
-      tooltipInstance = L.tooltip({ direction: 'top', offset: L.point(0, -10) });
-      tooltipInstance.setLatLng(initialPos);
-      tooltipInstance.setContent(content);
-      tooltipInstance.setOpacity(0);
-      tooltipInstance.addTo(map);
-      lastValidPosition = initialPos;
+      tooltipRef.current = L.tooltip({ direction: 'top', offset: L.point(0, -10) });
+      tooltipRef.current.setLatLng(initialPos);
+      tooltipRef.current.setContent(content);
+      tooltipRef.current.setOpacity(0);
+      tooltipRef.current.addTo(map);
+      lastPosRef.current = initialPos;
     }
-    if (!tooltipInstance) return;
-    const pos = position || lastValidPosition;
-    if (pos) {
-      tooltipInstance.setLatLng(pos);
-      tooltipInstance.setContent(content);
-      tooltipInstance.setOpacity(0.95);
-      lastValidPosition = pos;
-    } else {
-      tooltipInstance.setOpacity(0);
+    const pos = position || lastPosRef.current;
+    if (pos && tooltipRef.current) {
+      tooltipRef.current.setLatLng(pos);
+      tooltipRef.current.setContent(content);
+      tooltipRef.current.setOpacity(0.95);
+      lastPosRef.current = pos;
+    } else if (tooltipRef.current) {
+      tooltipRef.current.setOpacity(0);
     }
   }, [map, position, content]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipRef.current) {
+        tooltipRef.current.remove();
+        tooltipRef.current = null;
+      }
+    };
+  }, [map]);
+
   return null;
 }
 
@@ -156,7 +165,6 @@ const ActivityMap: React.FC = () => {
   const [selectedMetric, setSelectedMetric] = useState<string>('heartrate');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [activeTileLayer, setActiveTileLayer] = useState<string>('dark');
-  const [mapHeight, setMapHeight] = useState<number>(600);
   const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
@@ -172,12 +180,6 @@ const ActivityMap: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize();
-    });
-  }, [mapHeight]);
 
   const loadActivityDetail = async (activityId: number) => {
     try {
@@ -329,67 +331,44 @@ const ActivityMap: React.FC = () => {
 
   if (!hasLatLng) {
     return (
-      <div>
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>{activity.name}</h2>
-            <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary">
-              Back to Activity
-            </button>
-          </div>
-        </div>
-        <div className="card">
-          <p style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
-            No GPS data available for this activity
-          </p>
-        </div>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:'1rem' }}>
+        <h2 style={{ margin:0 }}>{activity.name}</h2>
+        <p style={{ color:'#666' }}>No GPS data available for this activity</p>
+        <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary">Back to Activity</button>
       </div>
     );
   }
 
   if (!routeData) {
     return (
-      <div>
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>{activity.name}</h2>
-            <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary">
-              Back to Activity
-            </button>
-          </div>
-        </div>
-        <div className="card">
-          <p style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
-            No metric data available for heatmap visualization
-          </p>
-        </div>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:'1rem' }}>
+        <h2 style={{ margin:0 }}>{activity.name}</h2>
+        <p style={{ color:'#666' }}>No metric data available for heatmap visualization</p>
+        <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary">Back to Activity</button>
       </div>
     );
   }
 
   const currentMetric = METRICS.find((m) => m.key === selectedMetric);
-  const hoveredPoint = hoveredIndex !== null ? routeData.points[hoveredIndex] : null;
   const currentTileLayer = TILE_LAYERS.find((tl) => tl.id === activeTileLayer) || TILE_LAYERS[0];
 
   return (
     <div>
-      {/* Header */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>{activity.name}</h2>
-            <p style={{ color: '#666', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>
-              {activity.type} • {new Date(activity.start_date_local).toLocaleDateString()}
-            </p>
-          </div>
-          <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary">
-            Back to Activity
-          </button>
+      {/* Header overlay */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:1000, padding:'0.75rem 1rem', background:'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', display:'flex', justifyContent:'space-between', alignItems:'flex-start', pointerEvents:'none' }}>
+        <div style={{ pointerEvents:'auto' }}>
+          <h2 style={{ margin:0, color:'#fff', textShadow:'0 1px 3px rgba(0,0,0,0.8)', fontSize:'1.1rem' }}>{activity.name}</h2>
+          <p style={{ margin:'0.15rem 0 0', fontSize:'0.8rem', color:'rgba(255,255,255,0.8)', textShadow:'0 1px 2px rgba(0,0,0,0.6)' }}>
+            {activity.type} • {new Date(activity.start_date_local).toLocaleDateString()}
+          </p>
         </div>
+        <button onClick={() => navigate(`/activities/${id}`)} className="btn btn-secondary" style={{ pointerEvents:'auto', fontSize:'0.8rem', padding:'0.3rem 0.75rem', opacity:0.9 }}>
+          ← Back
+        </button>
       </div>
 
-      {/* Selectors */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
+       {/* Selectors */}
+       <div className="card" style={{ position:'absolute', bottom:'20px', left:'50%', transform:'translateX(-50%)', zIndex:1000, marginBottom:0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Metric:</label>
@@ -431,81 +410,48 @@ const ActivityMap: React.FC = () => {
               ))}
             </select>
            </div>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-             <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Height:</label>
-             <input
-               type="range"
-               min="300"
-               max="1000"
-               step="50"
-               value={mapHeight}
-               onChange={(e) => setMapHeight(Number(e.target.value))}
-               style={{ width: '100px' }}
-             />
-             <span style={{ fontSize: '0.85rem', minWidth: '45px' }}>{mapHeight}px</span>
-           </div>
-
         </div>
       </div>
 
       {/* Map */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '1rem' }}>
+      <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, margin:0, padding:0, zIndex:1, overflow:'hidden' }}>
         <MapContainer
           ref={mapRef as any}
           center={routeData.bounds[0] || [0, 0]}
           zoom={13}
-          style={{ width: '100%', height: `${mapHeight}px` }}
+          style={{ width: '100%', height: '100vh' }}
           worldCopyJump={true}
         >
           <TileLayer
             attribution={currentTileLayer.attribution}
             url={currentTileLayer.url}
           />
-          <FitMapToBounds bounds={routeData.bounds} onMapRef={(m) => { mapRef.current = m; }} />
+          <FitMapToBounds bounds={routeData.bounds} />
 
-          {routeData.segments.map((seg, i) => (
-             <Polyline
-               key={i}
-               positions={seg.coords}
-               pathOptions={{ color: seg.color, weight: 8, opacity: 0.85 }}
-               eventHandlers={{
-                 mouseover: () => setHoveredIndex(i),
-                 mouseout: () => setHoveredIndex(null),
-               }}
-             />
-           ))}
-           <HoverTooltip
+           {routeData.segments.map((seg, i) => (
+              <Polyline
+                key={i}
+                positions={seg.coords}
+                pathOptions={{ color: seg.color, weight: 8, opacity: 0.85 }}
+                eventHandlers={{
+                  mouseover: () => setHoveredIndex(i),
+                  mouseout: () => setHoveredIndex(null),
+                }}
+              />
+            ))}
+
+            {routeData.points.length > 0 && (
+              <>
+                <Marker position={[routeData.points[0].lat, routeData.points[0].lng]} icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;background:#22c55e;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })} />
+                <Marker position={[routeData.points[routeData.points.length-1].lat, routeData.points[routeData.points.length-1].lng]} icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })} />
+              </>
+            )}
+
+            <HoverTooltip
            position={hoveredIndex !== null && routeData?.points[hoveredIndex] ? [routeData.points[hoveredIndex].lat, routeData.points[hoveredIndex].lng] : null}
            content={`${currentMetric?.label}: ${hoveredIndex !== null && routeData?.points[hoveredIndex] ? routeData.points[hoveredIndex].value.toFixed(1) : ''} ${currentMetric?.unit}`}
          />
         </MapContainer>
-      </div>
-
-      {/* Color Legend */}
-      <div className="card">
-        <h3 style={{ margin: '0 0 0.75rem' }}>
-          {currentMetric?.label} ({currentMetric?.unit})
-        </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '0.85rem', minWidth: '60px', textAlign: 'right' }}>
-            {routeData.min.toFixed(1)}
-          </span>
-          <div
-            style={{
-              flex: 1,
-              height: '20px',
-              borderRadius: '4px',
-              background: 'linear-gradient(to right, rgb(0, 255, 0), rgb(255, 255, 0), rgb(255, 0, 0))',
-            }}
-          />
-          <span style={{ fontSize: '0.85rem', minWidth: '60px' }}>
-            {routeData.max.toFixed(1)}
-          </span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-          <span style={{ fontSize: '0.75rem', color: '#999' }}>Low</span>
-          <span style={{ fontSize: '0.75rem', color: '#999' }}>High</span>
-        </div>
       </div>
     </div>
   );
