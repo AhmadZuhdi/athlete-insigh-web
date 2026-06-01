@@ -15,6 +15,25 @@ interface Release {
 const ReleaseNotes: React.FC = () => {
   const releases: Release[] = [
     {
+      version: '1.4.0',
+      date: 'June 1, 2026',
+      title: 'Dark Mode Support',
+      description: 'Full dark mode support with system preference detection and persistent theme toggle',
+      features: [
+        'CSS custom properties theming system for consistent dark/light colors across all components',
+        'Dark mode toggle button in navigation bar with sun/moon icon',
+        'System preference detection on first visit (respects prefers-color-scheme)',
+        'Persistent theme choice in localStorage across sessions',
+        'Dark-optimized color palette with reduced brightness accents'
+      ],
+      improvements: [
+        'All global and component CSS files updated to use CSS variables',
+        'Inline styles in Activities, ActivityDetail, Settings, ActivityMap, and MultiMetricChart respond to theme',
+        'Map tile layer defaults to dark variant in dark mode',
+        'Chart backgrounds and toggle buttons adapt to current theme'
+      ]
+    },
+    {
       version: '1.3.0',
       date: 'May 21, 2026',
       title: 'Interactive Map View & Multi-Metric Charts',

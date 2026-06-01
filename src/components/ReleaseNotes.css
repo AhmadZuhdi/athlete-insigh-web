@@ -7,12 +7,12 @@
 .release-notes-container h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .release-notes-intro {
   font-size: 1.1rem;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 2rem;
 }
 
@@ -24,17 +24,17 @@
 }
 
 .release-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .release-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-hover);
 }
 
 .release-header {
@@ -52,26 +52,26 @@
 .release-version {
   font-size: 1.8rem;
   font-weight: 700;
-  color: #0066cc;
+  color: var(--info);
   margin: 0 0 0.5rem 0;
 }
 
 .release-title {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .release-date {
   font-size: 0.95rem;
-  color: #888;
+  color: var(--text-tertiary);
   margin: 0;
 }
 
 .release-badge {
   display: inline-block;
-  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  background: linear-gradient(135deg, var(--success) 0%, #1e7e34 100%);
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -84,7 +84,7 @@
 
 .release-description {
   font-size: 1rem;
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 1.5rem;
 }
@@ -100,7 +100,7 @@
 .release-section-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 0.75rem 0;
   display: flex;
   align-items: center;
@@ -117,7 +117,7 @@
   padding: 0.5rem 0;
   padding-left: 1.5rem;
   position: relative;
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -125,33 +125,33 @@
   content: '→';
   position: absolute;
   left: 0;
-  color: #0066cc;
+  color: var(--info);
   font-weight: bold;
 }
 
 .release-footer {
   text-align: center;
   padding: 2rem;
-  background: #f5f9ff;
+  background: var(--bg-tertiary);
   border-radius: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-light);
 }
 
 .release-footer p {
   margin: 0;
   font-size: 1rem;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .release-footer a {
-  color: #0066cc;
+  color: var(--info);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
 }
 
 .release-footer a:hover {
-  color: #0052a3;
+  color: var(--info-hover);
   text-decoration: underline;
 }
 

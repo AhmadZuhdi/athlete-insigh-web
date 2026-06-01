@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useThemeColors } from '../context/ThemeContext';
 import {
   LineChart,
   Line,
@@ -33,6 +34,7 @@ const METRIC_OPTIONS: MetricOption[] = [
 ];
 
 const MultiMetricChart: React.FC<MultiMetricChartProps> = ({ data, title = 'Multi-Metric Overview' }) => {
+  const colors = useThemeColors();
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['pace', 'speed']);
 
   const toggleMetric = (key: string) => {
@@ -86,7 +88,7 @@ const MultiMetricChart: React.FC<MultiMetricChartProps> = ({ data, title = 'Mult
                 padding: '0.3rem 0.6rem',
                 border: `2px solid ${metric.stroke}`,
                 borderRadius: '4px',
-                backgroundColor: selectedMetrics.includes(metric.key) ? metric.stroke : 'white',
+                backgroundColor: selectedMetrics.includes(metric.key) ? metric.stroke : colors.bgSecondary,
                 color: selectedMetrics.includes(metric.key) ? 'white' : metric.stroke,
                 cursor: 'pointer',
                 fontSize: '0.8rem',

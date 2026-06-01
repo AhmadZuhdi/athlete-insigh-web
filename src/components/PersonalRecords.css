@@ -7,11 +7,11 @@
 .personal-records-container h1 {
   font-size: 2.5rem;
   margin-bottom: 1rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .pr-stats {
-  background: #f5f5f5;
+  background: var(--bg-tertiary);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 2rem;
@@ -20,7 +20,7 @@
 .pr-stats p {
   margin: 0;
   font-size: 1.1rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .pr-grid {
@@ -31,11 +31,11 @@
 }
 
 .pr-card {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
@@ -52,7 +52,7 @@
 .pr-card h3 {
   font-size: 1rem;
   margin: 0 0 1rem 0;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -68,18 +68,18 @@
 .pr-value .value {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #0066cc;
+  color: var(--info);
 }
 
 .pr-value .unit {
   font-size: 1rem;
-  color: #999;
+  color: var(--text-tertiary);
   margin-bottom: 0.5rem;
 }
 
 .pr-activity {
   flex-grow: 1;
-  background: #fafafa;
+  background: var(--bg-tertiary);
   padding: 1rem;
   border-radius: 8px;
 }
@@ -89,21 +89,21 @@
   font-size: 0.95rem;
 }
 
-.activity-name {
+.personal-records-container .activity-name {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 
 .activity-date {
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 
 .activity-type {
   display: inline-block;
-  background: #e3f2fd;
-  color: #0066cc;
+  background: var(--bg-tertiary);
+  color: var(--info);
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -115,13 +115,13 @@
   text-align: center;
   padding: 2rem;
   font-size: 1.1rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error {
-  background: #fee;
-  border: 1px solid #fcc;
-  color: #c33;
+  background: var(--error-bg);
+  border: 1px solid var(--danger);
+  color: var(--error-text);
   padding: 1rem;
   border-radius: 8px;
   margin: 1rem 0;
@@ -131,12 +131,12 @@
 .no-activities {
   text-align: center;
   padding: 2rem;
-  color: #999;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
 .no-activities {
-  background: #f5f5f5;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   font-size: 1.1rem;
 }
@@ -150,10 +150,10 @@
 }
 
 .distance-section {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   overflow: hidden;
-  background: white;
+  background: var(--bg-secondary);
 }
 
 .distance-section-header {
@@ -162,7 +162,7 @@
   gap: 1rem;
   width: 100%;
   padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+  background: linear-gradient(135deg, var(--info) 0%, var(--info-hover) 100%);
   color: white;
   border: none;
   cursor: pointer;
@@ -173,7 +173,7 @@
 }
 
 .distance-section-header:hover {
-  background: linear-gradient(135deg, #0052a3 0%, #003d7a 100%);
+  background: linear-gradient(135deg, var(--info-hover) 0%, #003d7a 100%);
 }
 
 .distance-section-header .distance-label {
@@ -197,8 +197,8 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-top: 1px solid #e0e0e0;
-  background: white;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
 }
 
 .distance-pr-header {
@@ -206,13 +206,13 @@
   grid-template-columns: 60px 120px 120px 120px 1fr 120px 100px;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  color: #333;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .distance-pr-row {
@@ -220,10 +220,10 @@
   grid-template-columns: 60px 120px 120px 120px 1fr 120px 100px;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border);
   align-items: center;
   cursor: pointer;
-  background: white;
+  background: var(--bg-secondary);
   border: none;
   transition: background-color 0.2s;
   font-family: inherit;
@@ -232,7 +232,7 @@
 }
 
 .distance-pr-row:hover {
-  background-color: #f5f9ff;
+  background-color: var(--bg-tertiary);
 }
 
 .distance-pr-row:last-child {
@@ -241,28 +241,28 @@
 
 .distance-pr-row .rank {
   font-weight: 700;
-  color: #28a745;
+  color: var(--success);
   font-size: 1rem;
 }
 
 .distance-pr-row .time {
   font-weight: 600;
-  color: #0066cc;
+  color: var(--info);
 }
 
 .distance-pr-row .pace {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.95rem;
 }
 
 .distance-pr-row .speed {
-  color: #0066cc;
+  color: var(--info);
   font-weight: 600;
   font-size: 0.95rem;
 }
 
 .distance-pr-row .activity {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -274,8 +274,8 @@
 
 .distance-pr-row .activity-id {
   display: inline-block;
-  background: #e3f2fd;
-  color: #0066cc;
+  background: var(--bg-tertiary);
+  color: var(--info);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -285,7 +285,7 @@
 }
 
 .distance-pr-row .date {
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
 import { StravaSettings, StravaAthlete, db } from '../services/database';
+import { useThemeColors } from '../context/ThemeContext';
 
 const Settings: React.FC = () => {
+  const colors = useThemeColors();
   const [settings, setSettings] = useState<Partial<StravaSettings>>({
     clientId: '',
     clientSecret: ''
@@ -254,11 +256,11 @@ const Settings: React.FC = () => {
         <h1>Strava API Settings</h1>
         <span style={{ 
           fontSize: '0.9rem', 
-          color: '#666', 
-          backgroundColor: '#f8f9fa', 
+          color: colors.textSecondary, 
+          backgroundColor: colors.bgTertiary, 
           padding: '0.25rem 0.5rem', 
           borderRadius: '4px',
-          border: '1px solid #dee2e6'
+          border: `1px solid ${colors.border}`
         }}>
           v0.1.3
         </span>
@@ -302,18 +304,18 @@ const Settings: React.FC = () => {
         </button>
       </form>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
         <h3>Strava Connection</h3>
         {isAuthenticated ? (
           <div>
-            <p style={{ color: 'green', marginBottom: '1rem' }}>✓ Connected to Strava</p>
+            <p style={{ color: colors.success, marginBottom: '1rem' }}>✓ Connected to Strava</p>
             <button onClick={handleLogout} className="btn btn-secondary">
               Disconnect
             </button>
           </div>
         ) : (
           <div>
-            <p style={{ color: '#666', marginBottom: '1rem' }}>
+            <p style={{ color: colors.textSecondary, marginBottom: '1rem' }}>
               Not connected to Strava. Save your settings first, then connect.
             </p>
             <button onClick={handleConnectStrava} className="btn">
@@ -325,7 +327,7 @@ const Settings: React.FC = () => {
 
       {/* Birth Year Settings */}
       {isAuthenticated && athlete && (
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
           <h3>Athlete Profile</h3>
           <div style={{ marginBottom: '1rem' }}>
             <p><strong>Name:</strong> {athlete.firstname} {athlete.lastname}</p>
@@ -344,7 +346,7 @@ const Settings: React.FC = () => {
               max={new Date().getFullYear()}
               style={{ marginBottom: '0.5rem' }}
             />
-            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
               This is used to calculate your estimated maximum heart rate (220 - age) for heart rate zone analysis.
             </p>
             <button 
@@ -358,7 +360,7 @@ const Settings: React.FC = () => {
           </div>
           
           {athlete.birth_year && (
-            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
               <p style={{ margin: 0, fontSize: '0.9rem' }}>
                 <strong>Current Age:</strong> {new Date().getFullYear() - athlete.birth_year} years<br />
                 <strong>Estimated Max HR:</strong> {220 - (new Date().getFullYear() - athlete.birth_year)} bpm
@@ -370,7 +372,7 @@ const Settings: React.FC = () => {
 
       {/* LLM Summary Prefix Settings */}
       {isAuthenticated && athlete && (
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
           <h3>LLM Summary Settings</h3>
           <div className="form-group">
             <label htmlFor="llmPrefix">
@@ -390,7 +392,7 @@ const Settings: React.FC = () => {
                 width: '100%',
               }}
             />
-            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
               This custom prefix will be added to the beginning of activity data when generating LLM summaries. 
               Use it to provide context or specific instructions for AI analysis of your fitness data.
             </p>
@@ -405,7 +407,7 @@ const Settings: React.FC = () => {
           </div>
           
           {athlete.llm_summary_prefix && (
-            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
               <p style={{ margin: 0, fontSize: '0.9rem' }}>
                 <strong>Current Prefix:</strong><br />
                 <em>"{athlete.llm_summary_prefix}"</em>
@@ -416,11 +418,11 @@ const Settings: React.FC = () => {
       )}
 
       {/* Data Management */}
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
         <h3>Data Management</h3>
         
         {isAuthenticated && dataStats && (
-          <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
             <h4 style={{ marginBottom: '1rem' }}>Database Statistics</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Activities:</strong> {dataStats.activities}</div>
@@ -434,9 +436,9 @@ const Settings: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
           {/* Export - Only show when authenticated */}
           {isAuthenticated && (
-            <div style={{ padding: '1rem', border: '1px solid #dee2e6', borderRadius: '4px' }}>
+            <div style={{ padding: '1rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}>
               <h4 style={{ marginBottom: '0.5rem' }}>Export Data</h4>
-              <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
                 Download all your activity data as a JSON file for backup or transfer.
               </p>
               <button 
@@ -451,9 +453,9 @@ const Settings: React.FC = () => {
           )}
 
           {/* Import - Always show */}
-          <div style={{ padding: '1rem', border: '1px solid #dee2e6', borderRadius: '4px' }}>
+          <div style={{ padding: '1rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}>
             <h4 style={{ marginBottom: '0.5rem' }}>Import Data</h4>
-            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
               Import previously exported data. This will replace all current data.
             </p>
             <input
@@ -467,38 +469,38 @@ const Settings: React.FC = () => {
               onClick={() => fileInputRef.current?.click()}
               className="btn"
               disabled={importing}
-              style={{ width: '100%', backgroundColor: '#28a745', borderColor: '#28a745' }}
+              style={{ width: '100%', backgroundColor: colors.success, borderColor: colors.success }}
             >
               {importing ? 'Importing...' : '📤 Import Data'}
             </button>
           </div>
         </div>
 
-        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#856404' }}>
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: colors.warningBg, border: `1px solid ${colors.border}`, borderRadius: '4px' }}>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: colors.warningText }}>
             <strong>⚠️ Important:</strong> Import will replace all existing data. {isAuthenticated ? 'Make sure to export your current data first if you want to keep it.' : 'You can import data even when not authenticated.'}
           </p>
         </div>
       </div>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
-        <h3 style={{ color: '#dc3545' }}>Danger Zone</h3>
-        <div style={{ padding: '1rem', backgroundColor: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: '4px' }}>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#721c24' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
+        <h3 style={{ color: colors.danger }}>Danger Zone</h3>
+        <div style={{ padding: '1rem', backgroundColor: colors.errorBg, border: `1px solid ${colors.danger}`, borderRadius: '4px' }}>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: colors.errorText }}>
             If you're experiencing database issues, you can reset all data. This will clear all stored activities and settings.
           </p>
           <button 
             type="button" 
             onClick={handleResetDatabase}
             className="btn"
-            style={{ backgroundColor: '#dc3545', borderColor: '#dc3545' }}
+            style={{ backgroundColor: colors.danger, borderColor: colors.danger }}
           >
             Reset Database
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
         <h3>Setup Instructions</h3>
         <ol style={{ paddingLeft: '1.5rem', lineHeight: '1.6' }}>
           <li>Go to <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener noreferrer">Strava API Settings</a></li>
@@ -509,9 +511,9 @@ const Settings: React.FC = () => {
         </ol>
       </div>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ddd' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
         <h3>Release Notes</h3>
-        <p style={{ fontSize: '0.95rem', color: '#666', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.95rem', color: colors.textSecondary, marginBottom: '1rem' }}>
           View the complete version history and release notes for Athlete Insight.
         </p>
         <Link 
@@ -519,7 +521,7 @@ const Settings: React.FC = () => {
           style={{
             display: 'inline-block',
             padding: '0.75rem 1.5rem',
-            backgroundColor: '#0066cc',
+            backgroundColor: colors.info,
             color: 'white',
             textDecoration: 'none',
             borderRadius: '4px',
@@ -527,7 +529,7 @@ const Settings: React.FC = () => {
             transition: 'background-color 0.2s'
           }}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0052a3'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0066cc'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.info}
         >
           📋 View Release Notes
         </Link>

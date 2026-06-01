@@ -4,8 +4,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import MultiMetricChart from './MultiMetricChart';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
+import { useThemeColors } from '../context/ThemeContext';
 
 const ActivityDetail: React.FC = () => {
+  const colors = useThemeColors();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activity, setActivity] = useState<ActivityDetailType | null>(null);
@@ -695,7 +697,7 @@ const ActivityDetail: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
             <h1>{activity.name}</h1>
-            <p style={{ color: '#666', marginBottom: '0.5rem' }}>
+            <p style={{ color: colors.textSecondary, marginBottom: '0.5rem' }}>
               {activity.type} • {formatDate(activity.start_date_local)}
             </p>
             {activity.description && (
@@ -706,10 +708,10 @@ const ActivityDetail: React.FC = () => {
             {segmentProgress.total > 0 && (
               <div style={{ 
                 padding: '0.5rem 1rem', 
-                backgroundColor: '#e3f2fd', 
+                backgroundColor: colors.infoLight, 
                 borderRadius: '4px',
                 fontSize: '0.9rem',
-                color: '#1976d2',
+                color: colors.info,
                 whiteSpace: 'nowrap'
               }}>
                 ⚙️ Segments: {segmentProgress.current}/{segmentProgress.total}
@@ -801,7 +803,7 @@ const ActivityDetail: React.FC = () => {
             </div>
           </div>
           {activity.streams && (
-            <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginTop: '1rem' }}>
               📊 Enhanced charts available with detailed GPS and sensor data
             </p>
           )}
@@ -880,7 +882,7 @@ const ActivityDetail: React.FC = () => {
           <h3>Heart Rate Zone Distribution</h3>
           {athlete?.birth_year ? (
             <div>
-              <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
                 Based on estimated max HR: {calculateMaxHeartRate(athlete.birth_year)} bpm (Age: {new Date().getFullYear() - athlete.birth_year})
               </p>
               <div className="chart-container">
@@ -913,7 +915,7 @@ const ActivityDetail: React.FC = () => {
                         height: '20px', 
                         backgroundColor: zone.color, 
                         marginRight: '10px',
-                        border: '1px solid #ccc'
+                        border: `1px solid ${colors.border}`
                       }}
                     ></div>
                     <span>{zone.zone}: {zone.time} minutes ({zone.percentage}%)</span>
@@ -923,7 +925,7 @@ const ActivityDetail: React.FC = () => {
             </div>
           ) : (
             <div>
-              <p style={{ color: '#666', marginBottom: '1rem' }}>
+              <p style={{ color: colors.textSecondary, marginBottom: '1rem' }}>
                 To see heart rate zone distribution, please set your birth year in settings.
               </p>
               <button onClick={() => navigate('/settings')} className="btn">
@@ -944,7 +946,7 @@ const ActivityDetail: React.FC = () => {
             
             return (
               <div>
-                <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
                   Effort calculation based on time spent in each heart rate zone with weighted multipliers
                 </p>
                 <div className="stats-grid">
@@ -965,7 +967,7 @@ const ActivityDetail: React.FC = () => {
                     <div className="stat-label">Time in HR Zones</div>
                   </div>
                 </div>
-                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
                   <h4 style={{ marginBottom: '0.5rem' }}>Zone Multipliers:</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', fontSize: '0.9rem' }}>
                     <div>🔵 Zone 1 (Recovery): ×{effortData.zoneMultipliers.zone1}</div>
@@ -974,7 +976,7 @@ const ActivityDetail: React.FC = () => {
                     <div>🟠 Zone 4 (Threshold): ×{effortData.zoneMultipliers.zone4}</div>
                     <div>🔴 Zone 5 (Max Effort): ×{effortData.zoneMultipliers.zone5}</div>
                   </div>
-                  <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem', marginBottom: 0 }}>
+                    <p style={{ fontSize: '0.8rem', color: colors.textSecondary, marginTop: '0.5rem', marginBottom: 0 }}>
                     Higher zones contribute exponentially more to effort score, reflecting physiological stress
                   </p>
                 </div>
@@ -986,7 +988,7 @@ const ActivityDetail: React.FC = () => {
                     <select 
                       value={comparisonPeriod} 
                       onChange={(e) => setComparisonPeriod(e.target.value as 'month' | 'year')}
-                      style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                      style={{ padding: '0.5rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}
                     >
                       <option value="month">Same Month</option>
                       <option value="year">Same Year</option>
@@ -995,7 +997,7 @@ const ActivityDetail: React.FC = () => {
                   
                   {comparisonData.length > 0 ? (
                     <div>
-                      <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+                      <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
                         Comparing with {comparisonData.length - 1} other activities from the same {comparisonPeriod}
                       </p>
                       <div className="chart-container">
@@ -1018,9 +1020,9 @@ const ActivityDetail: React.FC = () => {
                                   const data = payload[0].payload;
                                   return (
                                     <div style={{ 
-                                      backgroundColor: 'white', 
+                                      backgroundColor: colors.bgSecondary, 
                                       padding: '10px', 
-                                      border: '1px solid #ccc', 
+                                      border: `1px solid ${colors.border}`, 
                                       borderRadius: '4px',
                                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                     }}>
@@ -1029,7 +1031,7 @@ const ActivityDetail: React.FC = () => {
                                       <p>Type: {data.type}</p>
                                       <p>Distance: {data.distance.toFixed(2)} km</p>
                                       <p>Effort: {data.effort} points</p>
-                                      {data.isCurrentActivity && <p style={{color: '#007bff'}}><strong>← Current Activity</strong></p>}
+                                      {data.isCurrentActivity && <p style={{color: colors.info}}><strong>← Current Activity</strong></p>}
                                     </div>
                                   );
                                 }
@@ -1046,7 +1048,7 @@ const ActivityDetail: React.FC = () => {
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
-                      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
+                      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: colors.infoLight, borderRadius: '4px' }}>
                         <p style={{ fontSize: '0.9rem', margin: 0 }}>
                           <strong>Your Position:</strong> {(() => {
                             const currentIndex = comparisonData.findIndex(d => d.isCurrentActivity);
@@ -1059,7 +1061,7 @@ const ActivityDetail: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <p style={{ fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '0.9rem', color: colors.textSecondary, fontStyle: 'italic' }}>
                       No other activities with heart rate data found for comparison in this {comparisonPeriod}.
                     </p>
                   )}
@@ -1095,28 +1097,28 @@ const ActivityDetail: React.FC = () => {
       {activitySegments.size > 0 && (
         <div className="card">
           <h3>Distance-Based Records 🎯</h3>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
             Personal records achieved in this activity:
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
             {Array.from(activitySegments.entries()).map(([distance, pr]) => (
               <div key={distance} style={{
                 padding: '1rem',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: colors.bgTertiary,
                 borderRadius: '8px',
-                border: '2px solid #28a745',
+                border: `2px solid ${colors.success}`,
                 textAlign: 'center'
               }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#28a745', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: colors.success, marginBottom: '0.5rem' }}>
                   {distance}km
                 </div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: colors.textPrimary, marginBottom: '0.5rem' }}>
                   {formatSegmentTime(pr.timeSecs)}
                 </div>
-                <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '0.5rem' }}>
                   {formatSegmentPace(pr.pace)}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#999' }}>
+                <div style={{ fontSize: '0.8rem', color: colors.textTertiary }}>
                   {pr.dataQuality === 'stream-precise' ? '🎯 GPS' : '📊 Est'}
                 </div>
               </div>

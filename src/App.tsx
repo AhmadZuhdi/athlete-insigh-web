@@ -6,10 +6,12 @@ import ActivityDetail from './components/ActivityDetail';
 import ActivityMap from './components/ActivityMap';
 import PersonalRecords from './components/PersonalRecords';
 import ReleaseNotes from './components/ReleaseNotes';
+import { useTheme } from './context/ThemeContext';
 import './App.css';
 
 function App() {
   const location = useLocation();
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <div className="App">
@@ -38,6 +40,14 @@ function App() {
               Settings
             </Link>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="nav-link"
+            style={{ marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2rem' }}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
         </div>
       </nav>
 

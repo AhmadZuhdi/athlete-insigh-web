@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail } from '../services/database';
+import { useThemeColors } from '../context/ThemeContext';
 
 // Fix Leaflet default marker icon issue with webpack
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -159,6 +160,7 @@ function colorFromValue(value: number, min: number, max: number): string {
 const ActivityMap: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const colors = useThemeColors();
   const [activity, setActivity] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -377,7 +379,7 @@ const ActivityMap: React.FC = () => {
               onChange={handleMetricChange}
               style={{
                 padding: '0.5rem',
-                border: '1px solid #ddd',
+                border: `1px solid ${colors.border}`,
                 borderRadius: '4px',
                 fontSize: '0.9rem',
                 minWidth: '150px',
@@ -397,7 +399,7 @@ const ActivityMap: React.FC = () => {
               onChange={handleTileLayerChange}
               style={{
                 padding: '0.5rem',
-                border: '1px solid #ddd',
+                border: `1px solid ${colors.border}`,
                 borderRadius: '4px',
                 fontSize: '0.9rem',
                 minWidth: '130px',

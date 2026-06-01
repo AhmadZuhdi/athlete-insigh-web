@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
 import { StravaActivity, db } from '../services/database';
+import { useThemeColors } from '../context/ThemeContext';
 
 const Activities: React.FC = () => {
+  const colors = useThemeColors();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<StravaActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,10 +376,10 @@ const Activities: React.FC = () => {
             {segmentProgress.total > 0 && (
               <div style={{ 
                 padding: '0.5rem 1rem', 
-                backgroundColor: '#e3f2fd', 
+                backgroundColor: colors.infoLight, 
                 borderRadius: '4px',
                 fontSize: '0.9rem',
-                color: '#1976d2'
+                color: colors.info
               }}>
                 ⚙️ Segments: {segmentProgress.current}/{segmentProgress.total}
               </div>
@@ -385,10 +387,10 @@ const Activities: React.FC = () => {
             {allPRsProgress.total > 0 && (
               <div style={{ 
                 padding: '0.5rem 1rem', 
-                backgroundColor: '#fff3cd', 
+                backgroundColor: colors.warningBg, 
                 borderRadius: '4px',
                 fontSize: '0.9rem',
-                color: '#856404'
+                color: colors.warningText
               }}>
                 🎯 PRs: {allPRsProgress.current}/{allPRsProgress.total}
               </div>
@@ -424,7 +426,7 @@ const Activities: React.FC = () => {
         </div>
         
         {/* Filter Controls */}
-        <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+        <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label htmlFor="activity-type" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500' }}>
@@ -434,7 +436,7 @@ const Activities: React.FC = () => {
                 id="activity-type"
                 value={filters.type} 
                 onChange={(e) => handleFilterChange('type', e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                style={{ width: '100%', padding: '0.5rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}
               >
                 <option value="">All Types</option>
                 {getUniqueActivityTypes().map(type => (
@@ -453,7 +455,7 @@ const Activities: React.FC = () => {
                 placeholder="Search by name..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                style={{ width: '100%', padding: '0.5rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}
               />
             </div>
             
@@ -466,7 +468,7 @@ const Activities: React.FC = () => {
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                style={{ width: '100%', padding: '0.5rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}
               />
             </div>
             
@@ -479,16 +481,16 @@ const Activities: React.FC = () => {
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                style={{ width: '100%', padding: '0.5rem', border: `1px solid ${colors.border}`, borderRadius: '4px' }}
               />
             </div>
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.9rem', color: '#666' }}>
+            <div style={{ fontSize: '0.9rem', color: colors.textSecondary }}>
               <div>Showing {filteredActivities.length} of {activities.length} activities</div>
               {loadingStreams && (
-                <div style={{ marginTop: '0.25rem', color: '#007bff' }}>
+                <div style={{ marginTop: '0.25rem', color: colors.info }}>
                   📊 Fetching stream data: {streamProgress.current}/{streamProgress.total}
                 </div>
               )}
@@ -537,7 +539,7 @@ const Activities: React.FC = () => {
               <span>⬆️ {activity.total_elevation_gain.toFixed(0)}m</span>
             </div>
             {activity.average_heartrate && (
-              <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', color: colors.textSecondary, marginTop: '0.5rem' }}>
                 ❤️ Avg HR: {activity.average_heartrate.toFixed(0)} bpm
               </div>
             )}
@@ -559,7 +561,7 @@ const Activities: React.FC = () => {
       )}
       
       {!hasMoreData && activities.length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: '2rem', color: '#666' }}>
+        <div style={{ textAlign: 'center', marginTop: '2rem', color: colors.textSecondary }}>
           All activities loaded
         </div>
       )}
