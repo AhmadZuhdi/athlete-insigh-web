@@ -378,7 +378,7 @@ const ActivityMap: React.FC = () => {
     return (
       <div className="card">
         <div className="error">{error}</div>
-        <button onClick={() => navigate(`/activities/${id}`)} className="btn">
+        <button onClick={() => navigate(`/activity/${id}`)} className="btn">
           Back to Activity
         </button>
       </div>

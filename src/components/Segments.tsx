@@ -4,6 +4,43 @@ import { segmentService } from '../services/segmentService';
 import { db, Segment, SegmentEffort } from '../services/database';
 import './PersonalRecords.css';
 
+const SCAN_CONFIG_KEY = 'segmentScanConfig';
+
+interface ScanConfig {
+  direction: 'newest' | 'oldest';
+  limit: number;
+  limitEnabled: boolean;
+}
+
+const DEFAULT_SCAN_CONFIG: ScanConfig = {
+  direction: 'newest',
+  limit: 0,
+  limitEnabled: false,
+};
+
+function loadScanConfig(): ScanConfig {
+  try {
+    const raw = localStorage.getItem(SCAN_CONFIG_KEY);
+    if (!raw) return { ...DEFAULT_SCAN_CONFIG };
+    const parsed = JSON.parse(raw);
+    return {
+      direction: parsed.direction ?? DEFAULT_SCAN_CONFIG.direction,
+      limit: typeof parsed.limit === 'number' ? parsed.limit : DEFAULT_SCAN_CONFIG.limit,
+      limitEnabled: typeof parsed.limitEnabled === 'boolean' ? parsed.limitEnabled : DEFAULT_SCAN_CONFIG.limitEnabled,
+    };
+  } catch {
+    return { ...DEFAULT_SCAN_CONFIG };
+  }
+}
+
+function saveScanConfig(config: ScanConfig): void {
+  try {
+    localStorage.setItem(SCAN_CONFIG_KEY, JSON.stringify(config));
+  } catch {
+    // localStorage may be full or disabled
+  }
+}
+
 const SegmentsPage: React.FC = () => {
   const navigate = useNavigate();
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -16,10 +53,18 @@ const SegmentsPage: React.FC = () => {
   const [scanProgress, setScanProgress] = useState({ done: 0, total: 0 });
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [showScanConfig, setShowScanConfig] = useState(false);
+  const [scanDirection, setScanDirection] = useState<'newest' | 'oldest'>(() => loadScanConfig().direction);
+  const [scanLimit, setScanLimit] = useState<number>(() => loadScanConfig().limit);
+  const [scanLimitEnabled, setScanLimitEnabled] = useState<boolean>(() => loadScanConfig().limitEnabled);
 
   useEffect(() => {
     loadSegments();
   }, []);
+
+  useEffect(() => {
+    saveScanConfig({ direction: scanDirection, limit: scanLimit, limitEnabled: scanLimitEnabled });
+  }, [scanDirection, scanLimit, scanLimitEnabled]);
 
   const loadSegments = async () => {
     setLoading(true);
@@ -47,6 +92,11 @@ const SegmentsPage: React.FC = () => {
   };
 
   const selectSegment = async (seg: Segment) => {
+    if (selectedSegment?.id === seg.id) {
+      setSelectedSegment(null);
+      setEfforts([]);
+      return;
+    }
     setSelectedSegment(seg);
     try {
       const effortsData = await segmentService.getEffortsForSegment(seg.id!);
@@ -71,9 +121,14 @@ const SegmentsPage: React.FC = () => {
     setScanning(true);
     setScanProgress({ done: 0, total: 0 });
     try {
-      await segmentService.rescanAll((done, total) => {
-        setScanProgress({ done, total });
-      });
+      await segmentService.rescanAll(
+        scanLimitEnabled && scanLimit > 0
+          ? { direction: scanDirection, limit: scanLimit }
+          : { direction: scanDirection },
+        (done, total) => {
+          setScanProgress({ done, total });
+        }
+      );
       await loadSegments();
       if (selectedSegment) {
         await selectSegment(selectedSegment);
@@ -141,7 +196,15 @@ const SegmentsPage: React.FC = () => {
     <div className="personal-records-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h1 style={{ margin: 0 }}>Segments</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowScanConfig(!showScanConfig)}
+            className="btn btn-secondary"
+            type="button"
+            style={{ fontSize: '0.85rem' }}
+          >
+            {showScanConfig ? 'Hide Scan Config' : 'Scan Config'}
+          </button>
           <button
             onClick={handleScanAll}
             className="btn btn-secondary"
@@ -153,6 +216,46 @@ const SegmentsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Scan config panel */}
+      {showScanConfig && (
+        <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Direction:</label>
+              <select
+                value={scanDirection}
+                onChange={e => setScanDirection(e.target.value as 'newest' | 'oldest')}
+                style={{ padding: '0.3rem 0.5rem', fontSize: '0.85rem', borderRadius: '4px' }}
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={scanLimitEnabled}
+                  onChange={e => setScanLimitEnabled(e.target.checked)}
+                  style={{ marginRight: '0.3rem' }}
+                />
+                Limit:
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={scanLimit || ''}
+                onChange={e => setScanLimit(Math.max(1, parseInt(e.target.value) || 0))}
+                disabled={!scanLimitEnabled}
+                placeholder="count"
+                style={{ width: '80px', padding: '0.3rem 0.5rem', fontSize: '0.85rem', borderRadius: '4px' }}
+              />
+              <span style={{ fontSize: '0.8rem', color: '#888' }}>activities</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {segments.length === 0 ? (
         <div className="no-data" style={{ textAlign: 'center', padding: '3rem' }}>
           <p>No segments yet.</p>
@@ -161,40 +264,40 @@ const SegmentsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' as const }}>
+        <div>
           {/* Segment list */}
-          <div style={{ flex: '1 1 350px', minWidth: 0 }}>
-            <div className="pr-section">
-              <h2>All Segments ({segments.length})</h2>
-              <div className="distance-pr-list">
-                <div className="distance-pr-header">
-                  <div className="activity" style={{ flex: 2 }}>Name</div>
-                  <div className="rank" style={{ flex: 1, textAlign: 'center' }}>Efforts</div>
-                  <div className="time" style={{ flex: 1.5, textAlign: 'center' }}>PR</div>
-                  <div className="date" style={{ flex: 1, textAlign: 'center' }}>Actions</div>
-                </div>
-                {segments.map((seg) => {
-                  const best = bestEfforts.get(seg.id!);
-                  const count = effortCounts.get(seg.id!) || 0;
-                  return (
+          <div className="pr-section">
+            <h2>All Segments ({segments.length})</h2>
+            <div className="distance-pr-list">
+              <div className="distance-pr-header">
+                <div className="activity" style={{ flex: 3 }}>Name</div>
+                <div className="rank" style={{ flex: 1, textAlign: 'center' }}>Efforts</div>
+                <div className="time" style={{ flex: 1.5, textAlign: 'center' }}>PR</div>
+                <div className="date" style={{ flex: 0.5, textAlign: 'center' }}>Actions</div>
+              </div>
+              {segments.map((seg) => {
+                const best = bestEfforts.get(seg.id!);
+                const count = effortCounts.get(seg.id!) || 0;
+                const isSelected = selectedSegment?.id === seg.id;
+                return (
+                  <React.Fragment key={seg.id}>
                     <button
-                      key={seg.id}
-                      className={`distance-pr-row ${selectedSegment?.id === seg.id ? 'selected' : ''}`}
+                      className={`distance-pr-row ${isSelected ? 'selected' : ''}`}
                       onClick={() => selectSegment(seg)}
                       type="button"
                       style={{
                         cursor: 'pointer',
-                        background: selectedSegment?.id === seg.id ? 'var(--accent-bg, #e8f4fd)' : undefined,
+                        background: isSelected ? 'var(--accent-bg, #e8f4fd)' : undefined,
                       }}
                     >
-                      <div className="activity" style={{ flex: 2, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div className="activity" style={{ flex: 3, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {seg.name}
                       </div>
                       <div className="rank" style={{ flex: 1, textAlign: 'center' }}>{count}</div>
                       <div className="time" style={{ flex: 1.5, textAlign: 'center' }}>
                         {best ? formatTime(best.timeSecs) : '-'}
                       </div>
-                      <div className="date" style={{ flex: 1, textAlign: 'center', display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                      <div className="date" style={{ flex: 0.5, textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {renamingId === seg.id ? (
                           <>
                             <input
@@ -226,58 +329,56 @@ const SegmentsPage: React.FC = () => {
                         )}
                       </div>
                     </button>
-                  );
-                })}
-              </div>
+
+                    {/* Detail panel below the selected segment */}
+                    {isSelected && selectedSegment && (
+                      <div style={{ padding: '1rem 1rem 0.5rem 2rem', borderBottom: '1px solid var(--border-color, #eee)' }}>
+                        <h3 style={{ margin: '0 0 0.25rem' }}>{selectedSegment.name}</h3>
+                        <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 0.75rem' }}>
+                          {selectedSegment.distanceKm} km • {selectedSegment.elevationGain}m elevation
+                        </p>
+                        {efforts.length === 0 ? (
+                          <div className="no-data" style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.9rem' }}>
+                            No matching activities yet.
+                          </div>
+                        ) : (
+                          <div className="distance-pr-list" style={{ border: 'none' }}>
+                            <div className="distance-pr-header">
+                              <div className="rank">Rank</div>
+                              <div className="time">Time</div>
+                              <div className="pace">Pace</div>
+                              <div className="speed">Speed</div>
+                              <div className="activity">Activity</div>
+                              <div className="date">Date</div>
+                              <div>HR</div>
+                            </div>
+                            {efforts.map((eff, i) => (
+                              <button
+                                key={eff.id}
+                                className={`distance-pr-row ${i === 0 ? 'pr-row-best' : ''}`}
+                                onClick={() => navigate(`/activity/${eff.activityId}`)}
+                                type="button"
+                              >
+                                <div className="rank">#{i + 1}</div>
+                                <div className="time">{formatTime(eff.timeSecs)}</div>
+                                <div className="pace">{formatPace(eff.avgPace)}</div>
+                                <div className="speed">{eff.avgSpeed.toFixed(1)} km/h</div>
+                                <div className="activity" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {eff.activityName || `#${eff.activityId}`}
+                                </div>
+                                <div className="date">{eff.activityDate ? formatDate(eff.activityDate) : '-'}</div>
+                                <div>{eff.avgHr ? `${Math.round(eff.avgHr)} bpm` : '-'}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
-
-          {/* PR leaderboard */}
-          {selectedSegment && (
-            <div style={{ flex: '1 1 500px', minWidth: 0 }}>
-              <div className="pr-section">
-                <h2>{selectedSegment.name}</h2>
-                <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 0.75rem' }}>
-                  {selectedSegment.distanceKm} km • {selectedSegment.elevationGain}m elevation
-                </p>
-                {efforts.length === 0 ? (
-                  <div className="no-data" style={{ padding: '1.5rem', textAlign: 'center' }}>
-                    No matching activities yet. Click "Recalculate All" to scan.
-                  </div>
-                ) : (
-                  <div className="distance-pr-list">
-                    <div className="distance-pr-header">
-                      <div className="rank">Rank</div>
-                      <div className="time">Time</div>
-                      <div className="pace">Pace</div>
-                      <div className="speed">Speed</div>
-                      <div className="activity">Activity</div>
-                      <div className="date">Date</div>
-                      <div>HR</div>
-                    </div>
-                    {efforts.map((eff, i) => (
-                      <button
-                        key={eff.id}
-                        className={`distance-pr-row ${i === 0 ? 'pr-row-best' : ''}`}
-                        onClick={() => navigate(`/activity/${eff.activityId}`)}
-                        type="button"
-                      >
-                        <div className="rank">#{i + 1}</div>
-                        <div className="time">{formatTime(eff.timeSecs)}</div>
-                        <div className="pace">{formatPace(eff.avgPace)}</div>
-                        <div className="speed">{eff.avgSpeed.toFixed(1)} km/h</div>
-                        <div className="activity" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {eff.activityName || `#${eff.activityId}`}
-                        </div>
-                        <div className="date">{eff.activityDate ? formatDate(eff.activityDate) : '-'}</div>
-                        <div>{eff.avgHr ? `${Math.round(eff.avgHr)} bpm` : '-'}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

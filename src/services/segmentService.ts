@@ -117,23 +117,36 @@ export class SegmentService {
     return newEfforts;
   }
 
-  async rescanAll(callback?: (progress: number, total: number) => void): Promise<void> {
+  async rescanAll(
+    options?: { direction?: 'newest' | 'oldest'; limit?: number },
+    callback?: (progress: number, total: number) => void
+  ): Promise<void> {
     const segments = await this.getAllSegments();
     if (segments.length === 0) return;
 
-    const activities = await db.activityDetails.toArray();
-    const activitiesWithStreams = activities.filter(
+    let activities = await db.activityDetails.toArray();
+    let activitiesWithStreams = activities.filter(
       a => a.streams?.latlng && a.streams?.time
     );
 
-    const total = segments.length * activitiesWithStreams.length;
+    if (options?.direction === 'newest') {
+      activitiesWithStreams.sort((a, b) => new Date(b.start_date_local).getTime() - new Date(a.start_date_local).getTime());
+    } else if (options?.direction === 'oldest') {
+      activitiesWithStreams.sort((a, b) => new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime());
+    }
+
+    if (options?.limit && options.limit > 0 && options.limit < activitiesWithStreams.length) {
+      activitiesWithStreams = activitiesWithStreams.slice(0, options.limit);
+    }
+
+    const total = activitiesWithStreams.length;
     let completed = 0;
 
     await db.segmentEfforts.clear();
 
-    for (const segment of segments) {
-      for (let i = 0; i < activitiesWithStreams.length; i += BATCH_SIZE) {
-        const batch = activitiesWithStreams.slice(i, i + BATCH_SIZE);
+    for (let ai = 0; ai < activitiesWithStreams.length; ai += BATCH_SIZE) {
+      const batch = activitiesWithStreams.slice(ai, ai + BATCH_SIZE);
+      for (const segment of segments) {
         const promises = batch.map(activity => {
           const effort = matchActivity(segment, activity);
           if (effort) {
@@ -141,14 +154,14 @@ export class SegmentService {
           }
           return Promise.resolve();
         });
-
         await Promise.all(promises);
-        completed += batch.length;
-        callback?.(completed, total);
+      }
 
-        if (BATCH_DELAY_MS > 0) {
-          await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
-        }
+      completed += batch.length;
+      callback?.(completed, total);
+
+      if (BATCH_DELAY_MS > 0) {
+        await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
       }
     }
   }

@@ -697,7 +697,7 @@ const ActivityDetail: React.FC = () => {
     <div>
       {/* Header */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
           <div>
             <h1>{activity.name}</h1>
             <p style={{ color: colors.textSecondary, marginBottom: '0.5rem' }}>
@@ -707,7 +707,7 @@ const ActivityDetail: React.FC = () => {
               <p style={{ fontStyle: 'italic' }}>{activity.description}</p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {segmentProgress.total > 0 && (
               <div style={{ 
                 padding: '0.5rem 1rem', 

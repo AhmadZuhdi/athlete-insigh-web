@@ -15,6 +15,23 @@ interface Release {
 const ReleaseNotes: React.FC = () => {
   const releases: Release[] = [
     {
+      version: '1.5.1',
+      date: 'June 3, 2026',
+      title: 'Bug Fixes & UI Polish',
+      description: 'Fixed scan config persistence, improved progress display, and cleaned up table layouts',
+      bugFixes: [
+        'Fixed scan config (direction, limit) not persisting across page reloads — now stored in localStorage',
+        'Fixed progress counter showing segments × activities instead of just activity count during scan',
+        'Fixed navigation link on activity map error state pointing to wrong route'
+      ],
+      improvements: [
+        'Wider segment name column and narrower Actions column for better table layout',
+        'Responsive activity detail header layout with wrap support',
+        'Activity card text now respects dark mode theme colors',
+        'Removed redundant inline style on activity cards'
+      ]
+    },
+    {
       version: '1.5.0',
       date: 'June 3, 2026',
       title: 'Segment PR Tracking & Route Grouping',

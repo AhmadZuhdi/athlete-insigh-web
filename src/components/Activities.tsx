@@ -527,7 +527,7 @@ const Activities: React.FC = () => {
             key={activity.id}
             className="activity-card"
             onClick={() => navigate(`/activity/${activity.id}`)}
-            style={{ border: 'none', textAlign: 'left', background: 'transparent', padding: '10', width: '100%' }}
+
           >
             <div className="activity-name">{activity.name}</div>
             <div className="activity-meta">
