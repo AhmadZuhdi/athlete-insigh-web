@@ -1,4 +1,5 @@
 import { db, StravaSettings, StravaActivity, ActivityDetail, StreamData, StravaAthlete, ActivitySegment } from './database';
+import { segmentService } from './segmentService';
 
 const STRAVA_BASE_URL = 'https://www.strava.com/api/v3';
 const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
@@ -184,6 +185,13 @@ export class StravaService {
     
     // Save to IndexedDB
     await db.activityDetails.put(activityDetail);
+
+    // Auto-scan against existing segments (non-blocking)
+    if (activityDetail.streams?.latlng && activityDetail.streams?.time) {
+      segmentService.scanActivity(activityDetail.id).catch(err => {
+        console.warn('Segment scan failed for activity', activityDetail.id, err);
+      });
+    }
 
     return activityDetail;
   }
