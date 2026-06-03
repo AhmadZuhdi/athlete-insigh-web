@@ -4,6 +4,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import MultiMetricChart from './MultiMetricChart';
 import { stravaService } from '../services/stravaService';
 import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
+import { segmentService } from '../services/segmentService';
+import { computeSegmentPolyline, computeSegmentStats } from '../services/segmentDetector';
+import { routeGroupingService } from '../services/routeGroupingService';
 import { useThemeColors } from '../context/ThemeContext';
 
 const ActivityDetail: React.FC = () => {
@@ -725,12 +728,58 @@ const ActivityDetail: React.FC = () => {
              >
                📋 LLM Summary
              </button>
-             <button 
-               onClick={() => navigate(`/activity/${id}/map`)} 
-               className="btn btn-secondary"
-             >
-               🗺️ Map View
-             </button>
+              <button 
+                onClick={() => navigate(`/activity/${id}/map`)} 
+                className="btn btn-secondary"
+              >
+                🗺️ Map View
+              </button>
+              <button
+                onClick={async () => {
+                  if (!activity || !activity.streams?.latlng) return;
+                  const name = prompt('Name this segment:', `${activity.name} (Full Route)`);
+                  if (!name) return;
+                  try {
+                    const latlng = activity.streams.latlng;
+                    const polyline = computeSegmentPolyline(latlng, 0, latlng.length - 1);
+                    const stats = computeSegmentStats(latlng, activity.streams.altitude, 0, latlng.length - 1);
+                    await segmentService.createSegment({
+                      name,
+                      activityId: activity.id,
+                      startIndex: 0,
+                      endIndex: latlng.length - 1,
+                      distanceKm: stats.distanceKm,
+                      elevationGain: stats.elevationGain,
+                      polyline,
+                      createdBy: 'full-route',
+                    });
+                  } catch (err) {
+                    console.error('Failed to save segment:', err);
+                  }
+                }}
+                className="btn btn-secondary"
+                disabled={!activity?.streams?.latlng}
+                title="Save entire route as a segment"
+              >
+                🏁 Save as Segment
+              </button>
+              <button
+                onClick={async () => {
+                  if (!activity) return;
+                  const name = prompt('Name this route:', `${activity.name}`);
+                  if (!name) return;
+                  try {
+                    await routeGroupingService.createRouteGroup(name, activity);
+                  } catch (err) {
+                    console.error('Failed to save route:', err);
+                  }
+                }}
+                className="btn btn-secondary"
+                disabled={!activity?.start_latlng || !activity?.end_latlng}
+                title="Save route for future comparison"
+              >
+                📍 Save as Route
+              </button>
             <button onClick={handleRefresh} className="btn" disabled={loading}>
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>

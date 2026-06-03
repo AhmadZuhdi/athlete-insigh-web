@@ -5,6 +5,8 @@ import Activities from './components/Activities';
 import ActivityDetail from './components/ActivityDetail';
 import ActivityMap from './components/ActivityMap';
 import PersonalRecords from './components/PersonalRecords';
+import SegmentsPage from './components/Segments';
+import RoutesPage from './components/Routes';
 import ReleaseNotes from './components/ReleaseNotes';
 import { useTheme } from './context/ThemeContext';
 import './App.css';
@@ -34,6 +36,18 @@ function App() {
               Records
             </Link>
             <Link 
+              to="/segments" 
+              className={`nav-link ${location.pathname === '/segments' ? 'active' : ''}`}
+            >
+              Segments
+            </Link>
+            <Link 
+              to="/routes" 
+              className={`nav-link ${location.pathname === '/routes' ? 'active' : ''}`}
+            >
+              Routes
+            </Link>
+            <Link 
               to="/settings" 
               className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
             >
@@ -60,6 +74,8 @@ function App() {
           <Route path="/release-notes" element={<ReleaseNotes />} />
           <Route path="/activity/:id" element={<ActivityDetail />} />
           <Route path="/activity/:id/map" element={<ActivityMap />} />
+          <Route path="/segments" element={<SegmentsPage />} />
+          <Route path="/routes" element={<RoutesPage />} />
         </Routes>
       </div>
     </div>

@@ -138,12 +138,66 @@ export interface ActivitySegment {
   calculatedAt: number;
 }
 
+export interface Segment {
+  id?: number;
+  name: string;
+  activityId: number;
+  startIndex: number;
+  endIndex: number;
+  distanceKm: number;
+  elevationGain: number;
+  polyline: [number, number][];
+  createdBy: 'full-route' | 'custom-points';
+  createdAt: number;
+}
+
+export interface SegmentEffort {
+  id?: number;
+  segmentId: number;
+  activityId: number;
+  timeSecs: number;
+  avgPace: number;
+  avgSpeed: number;
+  avgHr?: number;
+  maxHr?: number;
+  avgWatts?: number;
+  maxWatts?: number;
+  elevationGain?: number;
+  direction: 'forward' | 'reverse';
+  matchedAt: number;
+}
+
+export interface RouteGroup {
+  id?: number;
+  name: string;
+  fingerprint: string;
+  activityId: number;
+  createdAt: number;
+}
+
+export interface RouteActivity {
+  id?: number;
+  routeId: number;
+  activityId: number;
+  timeSecs: number;
+  avgSpeed: number;
+  avgPace: number;
+  avgHr?: number;
+  maxHr?: number;
+  elevationGain: number;
+  assignedAt: number;
+}
+
 export class AthleteInsightDB extends Dexie {
   settings!: Table<StravaSettings>;
   activities!: Table<StravaActivity>;
   activityDetails!: Table<ActivityDetail>;
   athlete!: Table<StravaAthlete>;
   activitySegments!: Table<ActivitySegment>;
+  segments!: Table<Segment>;
+  segmentEfforts!: Table<SegmentEffort>;
+  routeGroups!: Table<RouteGroup>;
+  routeActivities!: Table<RouteActivity>;
 
   constructor() {
     super('AthleteInsightDB');
@@ -164,16 +218,44 @@ export class AthleteInsightDB extends Dexie {
       athlete: 'id, firstname, lastname',
       activitySegments: '++id, activityId, distanceKm, pace'
     });
+
+    // Version 6 - Add custom segments and segment efforts
+    this.version(6).stores({
+      settings: '++id, clientId, clientSecret',
+      activities: 'id, name, start_date_local, type',
+      activityDetails: 'id, name, start_date_local, type',
+      athlete: 'id, firstname, lastname',
+      activitySegments: '++id, activityId, distanceKm, pace',
+      segments: '++id, name, activityId, createdAt',
+      segmentEfforts: '++id, segmentId, activityId, timeSecs'
+    });
+
+    // Version 7 - Add route groups for full-route PR tracking
+    this.version(7).stores({
+      settings: '++id, clientId, clientSecret',
+      activities: 'id, name, start_date_local, type',
+      activityDetails: 'id, name, start_date_local, type',
+      athlete: 'id, firstname, lastname',
+      activitySegments: '++id, activityId, distanceKm, pace',
+      segments: '++id, name, activityId, createdAt',
+      segmentEfforts: '++id, segmentId, activityId, timeSecs',
+      routeGroups: '++id, name, fingerprint, activityId',
+      routeActivities: '++id, routeId, activityId'
+    });
   }
 
   async clearAllData(): Promise<void> {
     try {
-      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, async () => {
+      await this.transaction('rw', [this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, this.segments, this.segmentEfforts, this.routeGroups, this.routeActivities], async () => {
         await this.settings.clear();
         await this.activities.clear();
         await this.activityDetails.clear();
         await this.athlete.clear();
         await this.activitySegments.clear();
+        await this.segments.clear();
+        await this.segmentEfforts.clear();
+        await this.routeGroups.clear();
+        await this.routeActivities.clear();
       });
     } catch (error) {
       console.error('Error clearing database:', error);
@@ -191,13 +273,17 @@ export class AthleteInsightDB extends Dexie {
   async exportData(): Promise<string> {
     try {
       const data = {
-        version: 5,
+        version: 7,
         timestamp: new Date().toISOString(),
         settings: await this.settings.toArray(),
         activities: await this.activities.toArray(),
         activityDetails: await this.activityDetails.toArray(),
         athlete: await this.athlete.toArray(),
-        activitySegments: await this.activitySegments.toArray()
+        activitySegments: await this.activitySegments.toArray(),
+        segments: await this.segments.toArray(),
+        segmentEfforts: await this.segmentEfforts.toArray(),
+        routeGroups: await this.routeGroups.toArray(),
+        routeActivities: await this.routeActivities.toArray()
       };
       return JSON.stringify(data, null, 2);
     } catch (error) {
@@ -219,7 +305,7 @@ export class AthleteInsightDB extends Dexie {
       await this.clearAllData();
 
       // Import data
-      await this.transaction('rw', this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, async () => {
+      await this.transaction('rw', [this.settings, this.activities, this.activityDetails, this.athlete, this.activitySegments, this.segments, this.segmentEfforts, this.routeGroups, this.routeActivities], async () => {
         if (data.settings && Array.isArray(data.settings)) {
           await this.settings.bulkAdd(data.settings);
         }
@@ -235,6 +321,18 @@ export class AthleteInsightDB extends Dexie {
         if (data.activitySegments && Array.isArray(data.activitySegments)) {
           await this.activitySegments.bulkAdd(data.activitySegments);
         }
+        if (data.segments && Array.isArray(data.segments)) {
+          await this.segments.bulkAdd(data.segments);
+        }
+        if (data.segmentEfforts && Array.isArray(data.segmentEfforts)) {
+          await this.segmentEfforts.bulkAdd(data.segmentEfforts);
+        }
+        if (data.routeGroups && Array.isArray(data.routeGroups)) {
+          await this.routeGroups.bulkAdd(data.routeGroups);
+        }
+        if (data.routeActivities && Array.isArray(data.routeActivities)) {
+          await this.routeActivities.bulkAdd(data.routeActivities);
+        }
       });
 
       console.log('Data imported successfully:', {
@@ -242,7 +340,11 @@ export class AthleteInsightDB extends Dexie {
         activities: data.activities?.length || 0,
         activityDetails: data.activityDetails?.length || 0,
         athlete: data.athlete?.length || 0,
-        activitySegments: data.activitySegments?.length || 0
+        activitySegments: data.activitySegments?.length || 0,
+        segments: data.segments?.length || 0,
+        segmentEfforts: data.segmentEfforts?.length || 0,
+        routeGroups: data.routeGroups?.length || 0,
+        routeActivities: data.routeActivities?.length || 0
       });
     } catch (error) {
       console.error('Error importing data:', error);
@@ -255,6 +357,8 @@ export class AthleteInsightDB extends Dexie {
     activities: number;
     activityDetails: number;
     athlete: number;
+    segments: number;
+    segmentEfforts: number;
     totalSize: string;
   }> {
     try {
@@ -263,6 +367,10 @@ export class AthleteInsightDB extends Dexie {
         activities: await this.activities.count(),
         activityDetails: await this.activityDetails.count(),
         athlete: await this.athlete.count(),
+        segments: await this.segments.count(),
+        segmentEfforts: await this.segmentEfforts.count(),
+        routeGroups: await this.routeGroups.count(),
+        routeActivities: await this.routeActivities.count(),
         totalSize: 'Calculating...'
       };
 

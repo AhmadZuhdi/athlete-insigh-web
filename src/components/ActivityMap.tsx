@@ -4,7 +4,9 @@ import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { stravaService } from '../services/stravaService';
-import { ActivityDetail } from '../services/database';
+import { ActivityDetail, Segment as SegmentDef } from '../services/database';
+import { segmentService } from '../services/segmentService';
+import { computeSegmentPolyline, computeSegmentStats } from '../services/segmentDetector';
 import { useThemeColors } from '../context/ThemeContext';
 
 // Fix Leaflet default marker icon issue with webpack
@@ -97,6 +99,57 @@ function FitMapToBounds({ bounds }: { bounds: [number, number][] }) {
   return null;
 }
 
+function MapClickHandler({
+  segmentMode,
+  latlngs,
+  onPointPicked,
+}: {
+  segmentMode: boolean;
+  latlngs: [number, number][];
+  onPointPicked: (index: number) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!segmentMode) return;
+
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const clicked: [number, number] = [e.latlng.lat, e.latlng.lng];
+      let closestIdx = 0;
+      let closestDist = Infinity;
+
+      for (let i = 0; i < latlngs.length; i++) {
+        const dist = haversineDistance(clicked[0], clicked[1], latlngs[i][0], latlngs[i][1]);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIdx = i;
+        }
+      }
+
+      if (closestDist < 500) {
+        onPointPicked(closestIdx);
+      }
+    };
+
+    map.on('click', handleClick);
+    return () => { map.off('click', handleClick); };
+  }, [map, segmentMode, latlngs, onPointPicked]);
+
+  return null;
+}
+
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 function HoverTooltip({ position, content }: { position: [number, number] | null; content: string }) {
   const map = useMap();
   const tooltipRef = useRef<L.Tooltip | null>(null);
@@ -168,6 +221,12 @@ const ActivityMap: React.FC = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [activeTileLayer, setActiveTileLayer] = useState<string>('dark');
   const mapRef = useRef<L.Map | null>(null);
+
+  const [segmentMode, setSegmentMode] = useState(false);
+  const [segmentStartIdx, setSegmentStartIdx] = useState<number | null>(null);
+  const [segmentEndIdx, setSegmentEndIdx] = useState<number | null>(null);
+  const [segmentName, setSegmentName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -303,6 +362,14 @@ const ActivityMap: React.FC = () => {
     setActiveTileLayer(e.target.value);
   }, []);
 
+  const handlePointPicked = useCallback((index: number) => {
+    if (segmentStartIdx === null) {
+      setSegmentStartIdx(index);
+    } else if (segmentEndIdx === null && index !== segmentStartIdx) {
+      setSegmentEndIdx(index);
+    }
+  }, [segmentStartIdx]);
+
   if (loading) {
     return <div className="loading">Loading map...</div>;
   }
@@ -411,9 +478,127 @@ const ActivityMap: React.FC = () => {
                 </option>
               ))}
             </select>
-           </div>
+        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  setSegmentMode(!segmentMode);
+                  setSegmentStartIdx(null);
+                  setSegmentEndIdx(null);
+                  setSegmentName('');
+                }}
+                className={`btn ${segmentMode ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem', whiteSpace: 'nowrap' }}
+                type="button"
+              >
+                {segmentMode ? 'Exit Segment' : 'Create Segment'}
+              </button>
+            </div>
         </div>
       </div>
+
+      {/* Segment creation panel */}
+      {segmentMode && (
+        <div className="card" style={{ position:'absolute', top:'80px', right:'20px', zIndex:1000, padding:'1rem', minWidth:'250px', maxWidth:'350px' }}>
+          <h3 style={{ margin:'0 0 0.5rem', fontSize:'1rem' }}>Create Segment</h3>
+          {segmentStartIdx === null ? (
+            <p style={{ fontSize:'0.85rem', color:'#888', margin:0 }}>Click on the route to set START point</p>
+          ) : segmentEndIdx === null ? (
+            <>
+              <p style={{ fontSize:'0.85rem', color:'#22c55e', margin:'0 0 0.5rem' }}>Start point set ✓</p>
+              <p style={{ fontSize:'0.85rem', color:'#888', margin:0 }}>Click on the route to set END point</p>
+            </>
+          ) : (
+            <div>
+              <p style={{ fontSize:'0.85rem', color:'#22c55e', margin:'0 0 0.5rem' }}>
+                Start ✓ & End ✓
+              </p>
+              {activity?.streams?.latlng && (
+                <div style={{ fontSize:'0.85rem', marginBottom:'0.75rem' }}>
+                  <div>Distance: <strong>{(() => {
+                    const stats = computeSegmentStats(
+                      activity.streams!.latlng!,
+                      activity.streams?.altitude,
+                      segmentStartIdx!,
+                      segmentEndIdx!
+                    );
+                    return `${stats.distanceKm} km`;
+                  })()}</strong></div>
+                  <div>Elevation gain: <strong>{(() => {
+                    const stats = computeSegmentStats(
+                      activity.streams!.latlng!,
+                      activity.streams?.altitude,
+                      segmentStartIdx!,
+                      segmentEndIdx!
+                    );
+                    return `${stats.elevationGain} m`;
+                  })()}</strong></div>
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Segment name..."
+                value={segmentName}
+                onChange={e => setSegmentName(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.4rem', marginBottom: '0.5rem',
+                  border: `1px solid ${colors.border}`, borderRadius: '4px',
+                  fontSize: '0.85rem', boxSizing: 'border-box'
+                }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={async () => {
+                    if (!activity || !segmentName.trim() || segmentStartIdx === null || segmentEndIdx === null) return;
+                    setSaving(true);
+                    try {
+                      const latlng = activity.streams!.latlng!;
+                      const polyline = computeSegmentPolyline(latlng, segmentStartIdx, segmentEndIdx);
+                      const stats = computeSegmentStats(latlng, activity.streams?.altitude, segmentStartIdx, segmentEndIdx);
+                      await segmentService.createSegment({
+                        name: segmentName.trim(),
+                        activityId: activity.id,
+                        startIndex: segmentStartIdx,
+                        endIndex: segmentEndIdx,
+                        distanceKm: stats.distanceKm,
+                        elevationGain: stats.elevationGain,
+                        polyline,
+                        createdBy: 'custom-points',
+                      });
+                      setSegmentMode(false);
+                      setSegmentStartIdx(null);
+                      setSegmentEndIdx(null);
+                      setSegmentName('');
+                    } catch (err) {
+                      console.error('Failed to save segment:', err);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className="btn btn-primary"
+                  disabled={!segmentName.trim() || saving}
+                  type="button"
+                  style={{ fontSize:'0.85rem', padding:'0.4rem 0.75rem', flex:1 }}
+                >
+                  {saving ? 'Saving...' : 'Save Segment'}
+                </button>
+                <button
+                  onClick={() => {
+                    setSegmentStartIdx(null);
+                    setSegmentEndIdx(null);
+                    setSegmentName('');
+                  }}
+                  className="btn btn-secondary"
+                  type="button"
+                  style={{ fontSize:'0.85rem', padding:'0.4rem 0.75rem' }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Map */}
       <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, margin:0, padding:0, zIndex:1, overflow:'hidden' }}>
@@ -429,6 +614,61 @@ const ActivityMap: React.FC = () => {
             url={currentTileLayer.url}
           />
           <FitMapToBounds bounds={routeData.bounds} />
+
+          {segmentMode && activity?.streams?.latlng && (
+            <MapClickHandler
+              segmentMode={segmentMode}
+              latlngs={activity.streams.latlng}
+              onPointPicked={handlePointPicked}
+            />
+          )}
+
+          {/* Highlight selected segment portion */}
+          {segmentMode && activity?.streams?.latlng && segmentStartIdx !== null && (
+            (() => {
+              const fullLatLngs = activity.streams!.latlng!;
+              const end = segmentEndIdx ?? segmentStartIdx;
+              const startIdx = Math.min(segmentStartIdx, end);
+              const endIdx = Math.max(segmentStartIdx, end);
+              const coords = fullLatLngs
+                .slice(startIdx, endIdx + 1)
+                .map(ll => [ll[0], ll[1]] as [number, number]);
+              return (
+                <Polyline
+                  positions={coords}
+                  pathOptions={{
+                    color: segmentEndIdx !== null ? '#22c55e' : '#fbbf24',
+                    weight: 6,
+                    opacity: 0.9,
+                  }}
+                />
+              );
+            })()
+          )}
+
+          {/* Segment start/end markers */}
+          {segmentMode && activity?.streams?.latlng && segmentStartIdx !== null && (
+            <Marker
+              position={[activity.streams.latlng[segmentStartIdx][0], activity.streams.latlng[segmentStartIdx][1]]}
+              icon={L.divIcon({
+                className: '',
+                html: '<div style="width:16px;height:16px;background:#22c55e;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">S</div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8],
+              })}
+            />
+          )}
+          {segmentMode && activity?.streams?.latlng && segmentEndIdx !== null && (
+            <Marker
+              position={[activity.streams.latlng[segmentEndIdx][0], activity.streams.latlng[segmentEndIdx][1]]}
+              icon={L.divIcon({
+                className: '',
+                html: '<div style="width:16px;height:16px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold">E</div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8],
+              })}
+            />
+          )}
 
            {routeData.segments.map((seg, i) => (
               <Polyline
