@@ -15,6 +15,24 @@ interface Release {
 const ReleaseNotes: React.FC = () => {
   const releases: Release[] = [
     {
+      version: '1.5.0',
+      date: 'June 3, 2026',
+      title: 'Segment PR Tracking & Route Grouping',
+      description: 'Strava-style segment personal records with GPS-based polyline matching, plus route grouping for comparing repeated runs',
+      features: [
+        'Create custom segments by picking any two points on an activity map route',
+        'Auto-detect segment matching across all past and future activities using GPS buffer matching (30m tolerance)',
+        'Per-segment PR leaderboard ranked by time showing HR, pace, speed, and power metrics',
+        'Route grouping via start/end/distance fingerprinting — automatically groups repeated runs of the same route',
+        'New Segments and Routes pages with full CRUD management (rename, delete)'
+      ],
+      improvements: [
+        'Add "Save Full Route as Segment" and "Save as Route" buttons on activity detail view',
+        'Non-blocking background segment scan when new activities are fetched from Strava',
+        'Export/import support for segments, segment efforts, route groups, and route activities'
+      ]
+    },
+    {
       version: '1.4.0',
       date: 'June 1, 2026',
       title: 'Dark Mode Support',
