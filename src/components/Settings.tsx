@@ -13,6 +13,7 @@ const Settings: React.FC = () => {
   const [athlete, setAthlete] = useState<StravaAthlete | null>(null);
   const [birthYear, setBirthYear] = useState<string>('');
   const [llmPrefix, setLlmPrefix] = useState<string>('');
+  const [autoFetchStrava, setAutoFetchStrava] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -37,6 +38,7 @@ const Settings: React.FC = () => {
       const savedSettings = await stravaService.getSettings();
       if (savedSettings) {
         setSettings(savedSettings);
+        setAutoFetchStrava(savedSettings.autoFetchStrava !== false);
       }
       setIsAuthenticated(await stravaService.isAuthenticated());
       
@@ -229,6 +231,20 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleToggleAutoFetch = async () => {
+    const newValue = !autoFetchStrava;
+    setAutoFetchStrava(newValue);
+    try {
+      const currentSettings = await stravaService.getSettings();
+      if (currentSettings) {
+        await stravaService.saveSettings({ ...currentSettings, autoFetchStrava: newValue });
+      }
+    } catch (error) {
+      console.error('Error saving auto-fetch preference:', error);
+      setAutoFetchStrava(!newValue);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await stravaService.logout();
@@ -309,6 +325,51 @@ const Settings: React.FC = () => {
         {isAuthenticated ? (
           <div>
             <p style={{ color: colors.success, marginBottom: '1rem' }}>✓ Connected to Strava</p>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.75rem 1rem',
+              backgroundColor: colors.bgTertiary,
+              borderRadius: '4px',
+              marginBottom: '1rem',
+            }}>
+              <div>
+                <div style={{ fontWeight: 500 }}>Auto-fetch from Strava</div>
+                <div style={{ fontSize: '0.85rem', color: colors.textSecondary, marginTop: '0.25rem' }}>
+                  When disabled, the activity list shows cached data without calling the Strava API
+                </div>
+              </div>
+              <button
+                onClick={handleToggleAutoFetch}
+                style={{
+                  position: 'relative',
+                  width: '44px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: autoFetchStrava ? colors.success : colors.textTertiary,
+                  transition: 'background-color 0.2s',
+                  flexShrink: 0,
+                }}
+                aria-label={autoFetchStrava ? 'Disable auto-fetch' : 'Enable auto-fetch'}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: autoFetchStrava ? '22px' : '2px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  transition: 'left 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                }} />
+              </button>
+            </div>
+
             <button onClick={handleLogout} className="btn btn-secondary">
               Disconnect
             </button>
@@ -417,16 +478,38 @@ const Settings: React.FC = () => {
         </div>
       )}
 
+      {/* FIT File Import */}
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
+        <h3>FIT File Import</h3>
+        <p style={{ fontSize: '0.9rem', color: colors.textSecondary, marginBottom: '1rem' }}>
+          Import activities from Garmin, Wahoo, Coros, and other devices using .fit files.
+        </p>
+        <Link
+          to="/import"
+          style={{
+            display: 'inline-block',
+            padding: '0.75rem 1.5rem',
+            backgroundColor: colors.info,
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            fontWeight: '500',
+          }}
+        >
+          📥 Go to Import Page
+        </Link>
+      </div>
+
       {/* Data Management */}
       <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
         <h3>Data Management</h3>
         
-        {isAuthenticated && dataStats && (
+        {dataStats && (
           <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: colors.bgTertiary, borderRadius: '4px' }}>
             <h4 style={{ marginBottom: '1rem' }}>Database Statistics</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.9rem' }}>
-              <div><strong>Activities:</strong> {dataStats.activities}</div>
-              <div><strong>Activity Details:</strong> {dataStats.activityDetails}</div>
+              <div><strong>Activities (Unified):</strong> {dataStats.allActivities}</div>
+              <div><strong>Activity Details:</strong> {dataStats.allActivityDetails}</div>
               <div><strong>Athletes:</strong> {dataStats.athlete}</div>
               <div><strong>Total Size:</strong> {dataStats.totalSize}</div>
             </div>
@@ -480,6 +563,38 @@ const Settings: React.FC = () => {
           <p style={{ margin: 0, fontSize: '0.9rem', color: colors.warningText }}>
             <strong>⚠️ Important:</strong> Import will replace all existing data. {isAuthenticated ? 'Make sure to export your current data first if you want to keep it.' : 'You can import data even when not authenticated.'}
           </p>
+        </div>
+      </div>
+
+      {/* Data Migration — Legacy Table Cleanup */}
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: `1px solid ${colors.border}` }}>
+        <h3>Data Migration</h3>
+        <div style={{ padding: '1rem', backgroundColor: colors.bgTertiary, border: `1px solid ${colors.border}`, borderRadius: '4px' }}>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: colors.textSecondary }}>
+            If you've confirmed all your data is intact after the automatic migration, you can purge
+            the old legacy tables to free up storage space. This cannot be undone.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to purge legacy tables? This will permanently delete old activity data from the previous storage format. Make sure all your data is visible in the app first.')) {
+                try {
+                  await db.deleteLegacyTables();
+                  setMessage({ type: 'success', text: 'Legacy tables purged successfully. Storage space freed.' });
+                  loadDataStats();
+                } catch (error) {
+                  setMessage({
+                    type: 'error',
+                    text: 'Failed to purge legacy tables. Please try again.'
+                  });
+                }
+              }
+            }}
+            className="btn btn-secondary"
+            style={{ backgroundColor: colors.warningText, borderColor: colors.warningText, color: 'white' }}
+          >
+            Purge Legacy Tables
+          </button>
         </div>
       </div>
 

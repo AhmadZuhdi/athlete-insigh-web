@@ -11,5 +11,18 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#fc4c02",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "share_target": {
+    "action": "/import",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "file",
+          "accept": [".fit", "application/octet-stream"]
+        }
+      ]
+    }
+  }
 }

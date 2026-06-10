@@ -51,7 +51,7 @@ const RoutesPage: React.FC = () => {
     }
   };
 
-  const handleUnassign = async (routeId: number, activityId: number) => {
+  const handleUnassign = async (routeId: number, activityId: string) => {
     try {
       await routeGroupingService.unassignActivity(routeId, activityId);
       await selectRoute(selectedRoute!);

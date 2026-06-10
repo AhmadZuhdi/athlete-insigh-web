@@ -1,4 +1,4 @@
-import { db, StravaSettings, StravaActivity, ActivityDetail, StreamData, StravaAthlete, ActivitySegment } from './database';
+import { db, StravaSettings, StravaActivity, ActivityDetail, StreamData, StravaAthlete, ActivitySegment, Activity } from './database';
 import { segmentService } from './segmentService';
 
 const STRAVA_BASE_URL = 'https://www.strava.com/api/v3';
@@ -139,6 +139,37 @@ export class StravaService {
     return response;
   }
 
+  private async ensureUuidForStravaId(stravaId: number): Promise<string> {
+    const existing = await db.allActivities
+      .where('externalId')
+      .equals(stravaId)
+      .first();
+    if (existing) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existing.id);
+      if (!isUuid) {
+        const uuid = crypto.randomUUID();
+        const { id: _oldId, ...rest } = existing;
+        await db.allActivities.delete(existing.id);
+        await db.allActivities.add({ ...rest, id: uuid });
+        const details = await db.allActivityDetails.get(existing.id as any);
+        if (details) {
+          const { id: _oldDetId, ...detRest } = details;
+          await db.allActivityDetails.delete(existing.id as any);
+          await db.allActivityDetails.add({ ...detRest, id: uuid });
+        }
+        await db.activitySegments.where('activityId').equals(existing.id).modify({ activityId: uuid });
+        await db.segments.where('activityId').equals(existing.id).modify({ activityId: uuid });
+        await db.segmentEfforts.where('activityId').equals(existing.id).modify({ activityId: uuid });
+        await db.routeGroups.where('activityId').equals(existing.id).modify({ activityId: uuid });
+        await db.routeActivities.where('activityId').equals(existing.id).modify({ activityId: uuid });
+        return uuid;
+      }
+      return existing.id;
+    }
+    const uuid = crypto.randomUUID();
+    return uuid;
+  }
+
   async getActivities(page: number = 1, perPage: number = 30): Promise<StravaActivity[]> {
     const response = await this.makeAuthenticatedRequest(
       `/athlete/activities?page=${page}&per_page=${perPage}`
@@ -153,6 +184,17 @@ export class StravaService {
     // Save activities to IndexedDB
     for (const activity of activities) {
       await db.activities.put(activity);
+      const uuid = await this.ensureUuidForStravaId(activity.id);
+      const exists = await db.allActivities.get(uuid);
+      if (!exists) {
+        await db.allActivities.add({
+          source: 'strava',
+          externalId: activity.id,
+          ...activity,
+          id: uuid,
+          map: activity.map ? { id: activity.map.id, summary_polyline: activity.map.summary_polyline, resource_state: activity.map.resource_state } : undefined
+        } as any);
+      }
     }
 
     return activities;
@@ -161,6 +203,12 @@ export class StravaService {
   async getActivityDetail(activityId: number): Promise<ActivityDetail> {
     // First try to get from IndexedDB
     const cachedDetail = await db.activityDetails.get(activityId);
+    const uuid = await this.ensureUuidForStravaId(activityId);
+    const cachedUnifiedDetail = await db.allActivityDetails.get(uuid);
+
+    if (cachedUnifiedDetail && cachedUnifiedDetail.streams) {
+      return cachedUnifiedDetail;
+    }
     if (cachedDetail && cachedDetail.streams) {
       return cachedDetail;
     }
@@ -183,17 +231,42 @@ export class StravaService {
       // Continue without streams if they fail to load
     }
     
-    // Save to IndexedDB
+    // Save to IndexedDB (old table)
     await db.activityDetails.put(activityDetail);
+
+    // Save to unified table
+    const { id, description, calories, segment_efforts, splits_metric, splits_standard, laps, best_efforts, photos, stats_visibility, hide_from_home, device_name, embed_token, similar_activities, available_zones, streams, ...rest } = activityDetail;
+    const unifiedDetail = {
+      id: uuid,
+      source: 'strava' as const,
+      externalId: id,
+      ...rest,
+      description,
+      calories,
+      segment_efforts,
+      splits_metric,
+      splits_standard,
+      laps,
+      best_efforts,
+      photos,
+      stats_visibility,
+      hide_from_home,
+      device_name,
+      embed_token,
+      similar_activities,
+      available_zones,
+      streams
+    };
+    await db.allActivityDetails.put(unifiedDetail);
 
     // Auto-scan against existing segments (non-blocking)
     if (activityDetail.streams?.latlng && activityDetail.streams?.time) {
-      segmentService.scanActivity(activityDetail.id).catch(err => {
-        console.warn('Segment scan failed for activity', activityDetail.id, err);
+      segmentService.scanActivity(uuid).catch(err => {
+        console.warn('Segment scan failed for activity', uuid, err);
       });
     }
 
-    return activityDetail;
+    return unifiedDetail;
   }
 
   async getActivityStreams(activityId: number): Promise<StreamData> {
@@ -228,16 +301,31 @@ export class StravaService {
     return await db.activities.orderBy('start_date_local').reverse().toArray();
   }
 
+  async getCachedUnifiedActivities(): Promise<Activity[]> {
+    return await db.allActivities.orderBy('start_date_local').reverse().toArray();
+  }
+
   async clearCache(): Promise<void> {
     await db.activities.clear();
     await db.activityDetails.clear();
+    await db.allActivities.clear();
+    await db.allActivityDetails.clear();
   }
 
-  async clearActivityDetailCache(activityId?: number): Promise<void> {
-    if (activityId) {
-      await db.activityDetails.delete(activityId);
+  async clearActivityDetailCache(activityId?: number | string): Promise<void> {
+    if (activityId !== undefined) {
+      await db.activityDetails.delete(activityId as any);
+      if (typeof activityId === 'number') {
+        const unified = await db.allActivities.where('externalId').equals(activityId).first();
+        if (unified) {
+          await db.allActivityDetails.delete(unified.id);
+        }
+      } else {
+        await db.allActivityDetails.delete(activityId);
+      }
     } else {
       await db.activityDetails.clear();
+      await db.allActivityDetails.clear();
     }
   }
 
@@ -415,7 +503,8 @@ export class StravaService {
    */
   async extractSegmentTime(
     activity: ActivityDetail,
-    targetDistanceKm: number
+    targetDistanceKm: number,
+    activityIdOverride?: string
   ): Promise<ActivitySegment | null> {
     // Try streams first (most accurate)
     let result = this.extractSegmentTimeFromStreams(activity, targetDistanceKm);
@@ -435,7 +524,7 @@ export class StravaService {
     const avgSpeed = (targetDistanceKm / result.time) * 3600;
 
     return {
-      activityId: activity.id,
+      activityId: activityIdOverride || String(activity.id),
       distanceKm: targetDistanceKm,
       timeSecs: result.time,
       pace: result.pace,
@@ -454,7 +543,10 @@ export class StravaService {
   ): Promise<ActivitySegment[]> {
     try {
       const activity = await db.activityDetails.get(activityId);
-      if (!activity) {
+      const uuid = await this.ensureUuidForStravaId(activityId);
+      const unifiedActivity = await db.allActivityDetails.get(uuid);
+      const detail = unifiedActivity || activity;
+      if (!detail) {
         console.warn(`Activity ${activityId} not found`);
         return [];
       }
@@ -462,7 +554,7 @@ export class StravaService {
       const segments: ActivitySegment[] = [];
 
       for (const distance of distances) {
-        const segment = await this.extractSegmentTime(activity, distance);
+        const segment = await this.extractSegmentTime(detail, distance, uuid);
         if (segment) {
           segments.push(segment);
         }
@@ -505,11 +597,15 @@ export class StravaService {
         }
       }
 
-      // Get associated activity
-      const activity = await db.activities.get(fastest.activityId);
-      if (!activity) {
+      // Get associated activity from unified table
+      const unifiedActivity = await db.allActivities.get(fastest.activityId);
+      if (!unifiedActivity) {
         return null;
       }
+      const activity: StravaActivity = {
+        ...unifiedActivity,
+        id: unifiedActivity.externalId || 0
+      };
 
       return {
         ...fastest,
@@ -545,11 +641,13 @@ export class StravaService {
     progressCallback?: (current: number, total: number) => void
   ): Promise<number> {
     try {
-      const activities = await db.activityDetails.toArray();
+      const activities = await db.allActivities.toArray();
       let calculatedCount = 0;
 
       for (let i = 0; i < activities.length; i++) {
-        const segments = await this.calculateSegmentsForActivity(activities[i].id);
+        const numericId = activities[i].externalId;
+        if (numericId === undefined) continue;
+        const segments = await this.calculateSegmentsForActivity(numericId);
         if (segments.length > 0) {
           calculatedCount++;
         }

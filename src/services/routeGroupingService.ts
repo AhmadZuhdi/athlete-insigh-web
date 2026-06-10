@@ -1,9 +1,9 @@
-import { db, RouteGroup, RouteActivity, StravaActivity } from './database';
+import { db, RouteGroup, RouteActivity, StravaActivity, Activity } from './database';
 
 const START_END_ROUNDING = 3;
 const DISTANCE_TOLERANCE = 0.05;
 
-export function generateFingerprint(activity: StravaActivity): string | null {
+export function generateFingerprint(activity: StravaActivity | Activity): string | null {
   const start = activity.start_latlng;
   const end = activity.end_latlng;
   const dist = activity.distance;
@@ -43,7 +43,7 @@ export class RouteGroupingService {
     return await db.routeActivities.where('routeId').equals(routeId).toArray();
   }
 
-  async createRouteGroup(name: string, activity: StravaActivity): Promise<number> {
+  async createRouteGroup(name: string, activity: StravaActivity | Activity): Promise<number> {
     const fingerprint = generateFingerprint(activity);
     if (!fingerprint) throw new Error('Activity missing GPS data for route creation');
 
@@ -58,7 +58,7 @@ export class RouteGroupingService {
     return id;
   }
 
-  async getOrCreateRouteGroup(activity: StravaActivity): Promise<number | null> {
+  async getOrCreateRouteGroup(activity: StravaActivity | Activity): Promise<number | null> {
     const fp = generateFingerprint(activity);
     if (!fp) return null;
 
@@ -71,7 +71,7 @@ export class RouteGroupingService {
     return null;
   }
 
-  async autoAssignActivity(activity: StravaActivity): Promise<boolean> {
+  async autoAssignActivity(activity: StravaActivity | Activity): Promise<boolean> {
     const routeId = await this.getOrCreateRouteGroup(activity);
     if (!routeId) return false;
 
@@ -84,7 +84,7 @@ export class RouteGroupingService {
     return true;
   }
 
-  async assignActivityToRoute(routeId: number, activity: StravaActivity): Promise<void> {
+  async assignActivityToRoute(routeId: number, activity: StravaActivity | Activity): Promise<void> {
     const movingTime = activity.moving_time || activity.elapsed_time || 0;
     const distKm = (activity.distance || 0) / 1000;
 
@@ -101,7 +101,7 @@ export class RouteGroupingService {
     } as RouteActivity);
   }
 
-  async unassignActivity(routeId: number, activityId: number): Promise<void> {
+  async unassignActivity(routeId: number, activityId: string): Promise<void> {
     await db.routeActivities
       .where({ routeId, activityId })
       .delete();

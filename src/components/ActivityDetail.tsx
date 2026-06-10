@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import MultiMetricChart from './MultiMetricChart';
 import { stravaService } from '../services/stravaService';
-import { ActivityDetail as ActivityDetailType, StravaAthlete } from '../services/database';
+import { ActivityDetail as ActivityDetailType, StravaAthlete, Activity, db } from '../services/database';
 import { segmentService } from '../services/segmentService';
 import { computeSegmentPolyline, computeSegmentStats } from '../services/segmentDetector';
 import { routeGroupingService } from '../services/routeGroupingService';
@@ -13,6 +13,7 @@ const ActivityDetail: React.FC = () => {
   const colors = useThemeColors();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activity, setActivity] = useState<ActivityDetailType | null>(null);
   const [athlete, setAthlete] = useState<StravaAthlete | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,14 +23,36 @@ const ActivityDetail: React.FC = () => {
   const [comparisonPeriod, setComparisonPeriod] = useState<'month' | 'year'>('month');
   const [comparisonData, setComparisonData] = useState<any[]>([]);
 
+  const resolveActivityId = useCallback(async (rawId: string): Promise<string | null> => {
+    const isNumeric = /^\d+$/.test(rawId);
+    if (isNumeric) {
+      const activity = await db.allActivities
+        .where('externalId')
+        .equals(parseInt(rawId))
+        .first();
+      if (activity) {
+        navigate(`/activity/${activity.id}`, { replace: true });
+        return activity.id;
+      }
+    }
+    return rawId;
+  }, [navigate]);
+
   useEffect(() => {
     if (id) {
-      loadActivityDetail(parseInt(id));
-      loadAthlete();
-      // Load segments for this activity with progress tracking
-      loadActivitySegments(parseInt(id));
+      (async () => {
+        const resolvedId = await resolveActivityId(id);
+        if (resolvedId) {
+          await loadActivityDetail(resolvedId);
+          loadAthlete();
+          await loadActivitySegments(resolvedId);
+        } else {
+          setError('Activity not found');
+          setLoading(false);
+        }
+      })();
     }
-  }, [id]);
+  }, [id, resolveActivityId]);
 
   const calculateRelativeEffortPoints = () => {
     if (!activity?.streams?.heartrate || !athlete?.birth_year) {
@@ -90,8 +113,8 @@ const ActivityDetail: React.FC = () => {
     if (!activity || !athlete?.birth_year) return;
 
     try {
-      // Get all cached activities
-      const allActivities = await stravaService.getCachedActivities();
+      // Get all cached activities from unified table
+      const allActivities = await db.allActivities.toArray();
       
       // Filter activities by period
       const activityDate = new Date(activity.start_date_local);
@@ -112,8 +135,7 @@ const ActivityDetail: React.FC = () => {
       
       for (const act of filteredActivities) {
         try {
-          // Try to get detailed activity data
-          const detailedAct = await stravaService.getActivityDetail(act.id);
+          const detailedAct = await db.allActivityDetails.get(act.id) || await stravaService.getActivityDetail(act.externalId || 0);
           
           if (detailedAct.streams?.heartrate && athlete.birth_year) {
             const maxHR = calculateMaxHeartRate(athlete.birth_year);
@@ -187,16 +209,35 @@ const ActivityDetail: React.FC = () => {
     }
   }, [activity, athlete, comparisonPeriod, loadComparisonData]);
 
-  const loadActivityDetail = async (activityId: number, forceRefresh = false) => {
+  const loadActivityDetail = async (activityUuid: string, forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
       
       if (forceRefresh) {
-        await stravaService.clearActivityDetailCache(activityId);
+        await stravaService.clearActivityDetailCache(activityUuid);
       }
       
-      const detail = await stravaService.getActivityDetail(activityId);
+      let detail = await db.allActivityDetails.get(activityUuid);
+      if (!detail) {
+        const basic = await db.allActivities.get(activityUuid);
+        if (basic) {
+          if (basic.source === 'strava' && basic.externalId !== undefined) {
+            try {
+              detail = await stravaService.getActivityDetail(basic.externalId);
+            } catch {
+              detail = basic as ActivityDetailType;
+            }
+          } else {
+            detail = basic as ActivityDetailType;
+          }
+        }
+      }
+      if (!detail) {
+        setError('Activity not found');
+        setLoading(false);
+        return;
+      }
       setActivity(detail);
     } catch (error) {
       console.error('Error loading activity detail:', error);
@@ -206,31 +247,34 @@ const ActivityDetail: React.FC = () => {
     }
   };
 
-  const loadActivitySegments = async (activityId: number) => {
+  const loadActivitySegments = async (activityUuid: string) => {
     try {
       setSegmentProgress({ current: 0, total: 7 });
       const distances = [5, 10, 15, 20, 21.1, 30, 42.2];
       const segments = new Map();
       
-      // Ensure segments are calculated for this activity
+      const activity = await db.allActivities.get(activityUuid);
+      const numericId = activity?.externalId;
+      
       for (let i = 0; i < distances.length; i++) {
         try {
-          await stravaService.calculateSegmentsForActivity(activityId);
+          if (numericId !== undefined) {
+            await stravaService.calculateSegmentsForActivity(numericId);
+          }
           
-          // Get the segment data for this distance
           const pr = await stravaService.getPersonalRecordForDistance(distances[i]);
-          if (pr && pr.activity.id === activityId) {
+          if (pr && pr.activity.id === (numericId || 0)) {
             segments.set(distances[i], pr);
           }
         } catch (error) {
-          console.warn(`Error calculating segment for activity ${activityId}:`, error);
+          console.warn(`Error calculating segment for activity ${activityUuid}:`, error);
         }
         setSegmentProgress({ current: i + 1, total: 7 });
       }
       
       setActivitySegments(segments);
       if (segments.size > 0) {
-        console.log(`${segments.size} segment PRs found for activity ${activityId}`);
+        console.log(`${segments.size} segment PRs found for activity ${activityUuid}`);
       }
     } catch (error) {
       console.warn('Error loading activity segments:', error);
@@ -250,7 +294,12 @@ const ActivityDetail: React.FC = () => {
 
   const handleRefresh = () => {
     if (id) {
-      loadActivityDetail(parseInt(id), true);
+      const isNumeric = /^\d+$/.test(id);
+      if (isNumeric) {
+        resolveActivityId(id);
+      } else {
+        loadActivityDetail(id, true);
+      }
     }
   };
 
@@ -526,7 +575,7 @@ const ActivityDetail: React.FC = () => {
     
     // Add yearly activity context
     try {
-      const allActivities = await stravaService.getCachedActivities();
+      const allActivities = await db.allActivities.toArray();
       const currentYear = new Date(activity.start_date_local).getFullYear();
       
       const yearActivities = allActivities.filter(act => {
@@ -575,8 +624,8 @@ const ActivityDetail: React.FC = () => {
           let hrZoneText = '';
           if (athlete?.birth_year) {
             try {
-              const detailedAct = await stravaService.getActivityDetail(act.id);
-              if (detailedAct.streams?.heartrate) {
+              const detailedAct = await db.allActivityDetails.get(act.id) || await stravaService.getActivityDetail(act.externalId || 0);
+              if (detailedAct && detailedAct.streams?.heartrate) {
                 const maxHR = calculateMaxHeartRate(athlete.birth_year);
                 const zones = getHeartRateZones(maxHR);
                 const heartRateData = detailedAct.streams.heartrate;

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { stravaService } from '../services/stravaService';
-import { StravaActivity, db } from '../services/database';
+import { Activity, db } from '../services/database';
 import { useThemeColors } from '../context/ThemeContext';
 
 const Activities: React.FC = () => {
   const colors = useThemeColors();
-  const [activities, setActivities] = useState<StravaActivity[]>([]);
-  const [filteredActivities, setFilteredActivities] = useState<StravaActivity[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingStreams, setLoadingStreams] = useState(false);
@@ -19,6 +19,7 @@ const Activities: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [autoFetch, setAutoFetch] = useState(true);
   const [filters, setFilters] = useState({
     type: '',
     search: '',
@@ -88,12 +89,15 @@ const Activities: React.FC = () => {
     try {
       const authenticated = await stravaService.isAuthenticated();
       setIsAuthenticated(authenticated);
+
+      const settings = await stravaService.getSettings();
+      setAutoFetch(settings?.autoFetchStrava !== false);
       
       if (authenticated) {
         await loadActivities(true); // Reset pagination on initial load
       } else {
-        // Load cached activities if available
-        const cachedActivities = await stravaService.getCachedActivities();
+        // Load cached activities from unified table
+        const cachedActivities = await db.allActivities.orderBy('start_date_local').reverse().toArray();
         setActivities(cachedActivities);
       }
     } catch (error) {
@@ -128,34 +132,43 @@ const Activities: React.FC = () => {
     }
   }, []);
 
-  const loadActivities = async (reset = false) => {
+  const loadActivities = async (reset = false, forceFetch = false) => {
     try {
       setError(null);
       
       if (reset) {
         setCurrentPage(1);
         setHasMoreData(true);
-        // First load cached activities
-        const cachedActivities = await stravaService.getCachedActivities();
-        setActivities(cachedActivities);
       }
 
       const pageToLoad = reset ? 1 : currentPage;
       
-      // Then fetch fresh data from API
-      const freshActivities = await stravaService.getActivities(pageToLoad, 30);
+      const shouldFetch = forceFetch || autoFetch;
       
-      if (reset) {
-        setActivities(freshActivities);
+      if (shouldFetch) {
+        // Fetch fresh data from API (Strava service writes to both old + new tables)
+        const freshActivities = await stravaService.getActivities(pageToLoad, 30);
+        // Check if there's more data
+        if (freshActivities.length < 30) {
+          setHasMoreData(false);
+        } else {
+          setCurrentPage(prev => prev + 1);
+        }
       } else {
-        setActivities(prev => [...prev, ...freshActivities]);
+        setHasMoreData(false);
       }
       
-      // Check if there's more data
-      if (freshActivities.length < 30) {
-        setHasMoreData(false);
+      // Load all from unified table
+      const allActivities = await db.allActivities.orderBy('start_date_local').reverse().toArray();
+      
+      if (reset) {
+        setActivities(allActivities);
       } else {
-        setCurrentPage(prev => prev + 1);
+        setActivities(prev => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const newOnes = allActivities.filter(a => !existingIds.has(a.id));
+          return [...prev, ...newOnes];
+        });
       }
     } catch (error) {
       console.error('Error loading activities:', error);
@@ -168,7 +181,7 @@ const Activities: React.FC = () => {
     
     setLoadingMore(true);
     try {
-      await loadActivities(false);
+      await loadActivities(false, true);
     } finally {
       setLoadingMore(false);
     }
@@ -180,32 +193,39 @@ const Activities: React.FC = () => {
     setLoading(false);
   };
 
+  const fetchFromStrava = async () => {
+    setLoading(true);
+    await loadActivities(true, true);
+    setLoading(false);
+  };
+
   const initializeSegments = async () => {
     try {
       // Check if we need to calculate segments for cached activities
-      const cachedActivities = await stravaService.getCachedActivities();
+      const allActivities = await db.allActivities.toArray();
       const existingSegments = await db.activitySegments.toArray();
       
       // Only run if we have activities but no segments yet
-      if (cachedActivities.length > 0 && existingSegments.length === 0) {
-        console.log(`Initializing segments for ${cachedActivities.length} cached activities...`);
+      if (allActivities.length > 0 && existingSegments.length === 0) {
+        const stravaActivities = allActivities.filter(a => a.source === 'strava' && a.externalId !== undefined);
+        console.log(`Initializing segments for ${stravaActivities.length} cached activities...`);
         
         // Calculate segments in background (non-blocking)
         setImmediate(async () => {
           try {
             let calculatedCount = 0;
-            setSegmentProgress({ current: 0, total: cachedActivities.length });
+            setSegmentProgress({ current: 0, total: stravaActivities.length });
             
-            for (let i = 0; i < cachedActivities.length; i++) {
-              const activity = cachedActivities[i];
-              const segments = await stravaService.calculateSegmentsForActivity(activity.id);
+            for (let i = 0; i < stravaActivities.length; i++) {
+              const activity = stravaActivities[i];
+              const segments = await stravaService.calculateSegmentsForActivity(activity.externalId!);
               
               if (segments.length > 0) {
                 calculatedCount++;
               }
               
               // Update progress
-              setSegmentProgress({ current: i + 1, total: cachedActivities.length });
+              setSegmentProgress({ current: i + 1, total: stravaActivities.length });
               
               // Small delay to avoid blocking
               await new Promise(resolve => setTimeout(resolve, 50));
@@ -232,7 +252,8 @@ const Activities: React.FC = () => {
     setError(null);
     
     try {
-      const activitiesToProcess = filteredActivities.length > 0 ? filteredActivities : activities;
+      const activitiesToProcess = (filteredActivities.length > 0 ? filteredActivities : activities)
+        .filter(a => a.source === 'strava' && a.externalId !== undefined);
       setStreamProgress({ current: 0, total: activitiesToProcess.length });
       
       let successCount = 0;
@@ -244,7 +265,7 @@ const Activities: React.FC = () => {
         
         try {
           // Fetch detailed activity data with streams
-          await stravaService.getActivityDetail(activity.id);
+          await stravaService.getActivityDetail(activity.externalId!);
           successCount++;
           
           // Small delay to avoid rate limiting
@@ -275,24 +296,25 @@ const Activities: React.FC = () => {
   };
 
   const calculateAllActivityPRs = async () => {
-    if (!activities || activities.length === 0) return;
+    const stravaActivities = activities.filter(a => a.source === 'strava' && a.externalId !== undefined);
+    if (stravaActivities.length === 0) return;
     
     setCalculatingAllPRs(true);
-    setAllPRsProgress({ current: 0, total: activities.length });
+    setAllPRsProgress({ current: 0, total: stravaActivities.length });
     let successCount = 0;
     let errorCount = 0;
 
     try {
-      for (let i = 0; i < activities.length; i++) {
+      for (let i = 0; i < stravaActivities.length; i++) {
         try {
-          const activity = activities[i];
-          await stravaService.calculateSegmentsForActivity(activity.id);
+          const activity = stravaActivities[i];
+          await stravaService.calculateSegmentsForActivity(activity.externalId!);
           successCount++;
         } catch (error) {
           console.warn(`Error calculating PRs for activity:`, error);
           errorCount++;
         }
-        setAllPRsProgress({ current: i + 1, total: activities.length });
+        setAllPRsProgress({ current: i + 1, total: stravaActivities.length });
       }
 
       // Show completion message
@@ -419,7 +441,12 @@ const Activities: React.FC = () => {
                 '📊 Fetch Streams'
               )}
             </button>
-            <button onClick={refreshActivities} className="btn" disabled={loading}>
+            {!autoFetch && (
+              <button onClick={fetchFromStrava} className="btn" disabled={loading}>
+                {loading ? 'Loading...' : 'Fetch from Strava'}
+              </button>
+            )}
+            <button onClick={refreshActivities} className="btn btn-secondary" disabled={loading}>
               {loading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
@@ -527,9 +554,23 @@ const Activities: React.FC = () => {
             key={activity.id}
             className="activity-card"
             onClick={() => navigate(`/activity/${activity.id}`)}
-
           >
-            <div className="activity-name">{activity.name}</div>
+            <div className="activity-name">
+              {activity.name}
+              <span style={{
+                marginLeft: '0.5rem',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                verticalAlign: 'middle',
+                color: activity.source === 'device' ? '#6610f2' : '#fc4c02',
+                backgroundColor: activity.source === 'device' ? '#eee5ff' : '#fff0e5',
+                textTransform: 'uppercase',
+              }}>
+                {activity.source === 'device' ? 'Device' : 'Strava'}
+              </span>
+            </div>
             <div className="activity-meta">
               {activity.type} • {formatDate(activity.start_date_local)}
             </div>

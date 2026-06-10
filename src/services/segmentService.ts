@@ -40,7 +40,7 @@ export class SegmentService {
       .sortBy('timeSecs');
   }
 
-  async getEffortsForActivity(activityId: number): Promise<SegmentEffort[]> {
+  async getEffortsForActivity(activityId: string): Promise<SegmentEffort[]> {
     return await db.segmentEfforts
       .where('activityId')
       .equals(activityId)
@@ -62,13 +62,16 @@ export class SegmentService {
     return efforts[0];
   }
 
-  async scanActivity(activityId: number): Promise<SegmentEffort[]> {
+  async scanActivity(activityId: string): Promise<SegmentEffort[]> {
     const segments = await this.getAllSegments();
     if (segments.length === 0) return [];
 
     let detail: ActivityDetail;
     try {
-      detail = await stravaService.getActivityDetail(activityId);
+      const activity = await db.allActivities.get(activityId);
+      const numericId = activity?.externalId;
+      if (numericId === undefined) return [];
+      detail = await stravaService.getActivityDetail(numericId);
     } catch {
       return [];
     }
@@ -97,13 +100,14 @@ export class SegmentService {
     const segment = await this.getSegment(segmentId);
     if (!segment) return [];
 
-    const activities = await db.activityDetails.toArray();
+    const activities = await db.allActivityDetails.toArray();
     const existingEfforts = await this.getEffortsForSegment(segmentId);
     const existingActivityIds = new Set(existingEfforts.map(e => e.activityId));
 
     const newEfforts: SegmentEffort[] = [];
 
     for (const activity of activities) {
+      if (!activity.id) continue;
       if (existingActivityIds.has(activity.id)) continue;
       if (!activity.streams?.latlng || !activity.streams?.time) continue;
 
@@ -124,7 +128,7 @@ export class SegmentService {
     const segments = await this.getAllSegments();
     if (segments.length === 0) return;
 
-    let activities = await db.activityDetails.toArray();
+    let activities = await db.allActivityDetails.toArray();
     let activitiesWithStreams = activities.filter(
       a => a.streams?.latlng && a.streams?.time
     );

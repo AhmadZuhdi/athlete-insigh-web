@@ -8,6 +8,7 @@ import PersonalRecords from './components/PersonalRecords';
 import SegmentsPage from './components/Segments';
 import RoutesPage from './components/Routes';
 import ReleaseNotes from './components/ReleaseNotes';
+import FitImport from './components/FitImport';
 import { useTheme } from './context/ThemeContext';
 import './App.css';
 
@@ -28,6 +29,12 @@ function App() {
               className={`nav-link ${location.pathname === '/activities' ? 'active' : ''}`}
             >
               Activities
+            </Link>
+            <Link 
+              to="/import" 
+              className={`nav-link ${location.pathname === '/import' ? 'active' : ''}`}
+            >
+              Import
             </Link>
             <Link 
               to="/records" 
@@ -76,6 +83,7 @@ function App() {
           <Route path="/activity/:id/map" element={<ActivityMap />} />
           <Route path="/segments" element={<SegmentsPage />} />
           <Route path="/routes" element={<RoutesPage />} />
+          <Route path="/import" element={<FitImport />} />
         </Routes>
       </div>
     </div>

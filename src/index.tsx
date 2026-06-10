@@ -17,3 +17,12 @@ root.render(
     </ThemeProvider>
   </React.StrictMode>
 );
+
+// Register service worker for PWA share target
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(error => {
+      console.warn('Service worker registration failed:', error);
+    });
+  });
+}

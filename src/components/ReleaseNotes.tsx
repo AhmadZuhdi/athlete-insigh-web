@@ -15,6 +15,32 @@ interface Release {
 const ReleaseNotes: React.FC = () => {
   const releases: Release[] = [
     {
+      version: '1.6.0',
+      date: 'June 10, 2026',
+      title: 'FIT File Import & Unified Data Model',
+      description: 'Garmin/Wahoo/Coros FIT file import, unified IndexedDB schema, auto-fetch toggle, and Share Target PWA support',
+      features: [
+        'Import .fit files from any GPS device via drag-and-drop or file picker',
+        'PWA Share Target — share .fit files directly from file managers or email',
+        'Unified activity storage with UUID-based keys and source tracking (Strava/Device)',
+        'Strava auto-fetch toggle in Settings to show cached data without API calls',
+        'Manual "Fetch from Strava" button when auto-fetch is disabled'
+      ],
+      improvements: [
+        'IndexedDB v8 migration automatically migrates all existing Strava data to unified schema',
+        'Legacy table cleanup button in Settings to reclaim storage after migration',
+        'Auto-repair corrupt entries (numeric IDs → UUIDs) on Strava resync',
+        'Activity detail page falls back to basic data when stream details are unavailable'
+      ],
+      bugFixes: [
+        'Fixed getActivities spread order overwriting UUID with numeric Strava ID',
+        'Fixed ActivityDetail showing "Activity not found" when detail cache was empty'
+      ],
+      dependencies: [
+        'fit-file-parser@^3.0.0'
+      ]
+    },
+    {
       version: '1.5.1',
       date: 'June 3, 2026',
       title: 'Bug Fixes & UI Polish',

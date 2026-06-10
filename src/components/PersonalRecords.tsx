@@ -90,7 +90,7 @@ const PersonalRecords: React.FC = () => {
         
         if (segments.length > 0) {
           // Sort by time and remove duplicates by activity ID, keeping fastest for each activity
-          const uniqueByActivity = new Map<number, typeof segments[0]>();
+          const uniqueByActivity = new Map<string, typeof segments[0]>();
           
           segments
             .sort((a, b) => a.timeSecs - b.timeSecs)
